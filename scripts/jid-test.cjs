@@ -68,14 +68,20 @@ t('a group JID is left alone', () => {
   assert.strictEqual(jid.resolveSendJid(g, sock), g);
 });
 
-t("someone else's @lid is learned and then resolved to their PN", () => {
+t("someone else's @lid is NOT rewritten -- rewriting it breaks THEIR chat", () => {
+  // This assertion used to demand a rewrite to their PN. Production proved that
+  // wrong: their Signal session is keyed on the LID, so the rewritten message
+  // could not be decrypted and showed "Waiting for this message" instead. Only
+  // OUR OWN identity may be rewritten; Baileys compares digits to decide isMe
+  // and a bare @lid never matches our PN.
   jid.rememberFromKey({
     remoteJid: `${OWNER_LID}@lid`,
     senderPn: `2349165331115@s.whatsapp.net`,
   });
   assert.strictEqual(
     jid.resolveSendJid(`${OWNER_LID}@lid`, sock),
-    '2349165331115@s.whatsapp.net',
+    `${OWNER_LID}@lid`,
+    'a peer LID must be left exactly as received',
   );
 });
 
@@ -154,7 +160,7 @@ t('registerOwnIdentity tolerates missing fields', () => {
 
 console.log('\n══ learning from inbound keys ══\n');
 
-t('participantPn teaches a group participant LID', () => {
+t('learning a participant PN does not make their LID rewrite-able', () => {
   jid.rememberFromKey({
     remoteJid: '120363424039452916@g.us',
     participant: '11111111111111@lid',
@@ -162,7 +168,8 @@ t('participantPn teaches a group participant LID', () => {
   });
   assert.strictEqual(
     jid.resolveSendJid('11111111111111@lid', sock),
-    '2347011223344@s.whatsapp.net',
+    '11111111111111@lid',
+    'learning a PN must not change where we send',
   );
 });
 
