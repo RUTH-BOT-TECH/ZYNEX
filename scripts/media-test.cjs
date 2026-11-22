@@ -112,6 +112,30 @@ t('.tts does not mark MP3 as a voice note', () => {
     'MP3 with ptt:true is a corrupt voice note');
 });
 
+t('the GIF is converted to MP4 before being sent as a video', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'engines', 'reactions.js'), 'utf8');
+  assert.ok(/GIF→MP4/.test(src), 'raw GIF bytes are still uploaded as video/mp4');
+  assert.ok(/yuv420p/.test(src), 'without yuv420p phones refuse to play the video');
+  assert.ok(/ftyp/.test(src), 'the conversion result is not verified before sending');
+});
+
+t('a real GIF becomes a playable MP4 through the engine', () => {
+  if (!bin) return;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zynex-rx-'));
+  const gif = path.join(dir, 'a.gif');
+  const mp4 = path.join(dir, 'a.mp4');
+  execFileSync(bin, ['-y', '-f', 'lavfi', '-i', 'color=c=red:s=64x64:d=1:r=10', gif], { stdio: 'ignore' });
+  const gifBytes = fs.readFileSync(gif);
+  assert.strictEqual(gifBytes.slice(0, 3).toString('ascii'), 'GIF');
+
+  execFileSync(bin, ['-y', '-i', gif, '-movflags', '+faststart', '-pix_fmt', 'yuv420p',
+    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', '-an', mp4], { stdio: 'ignore' });
+  const out = fs.readFileSync(mp4);
+  // The whole bug in one assertion: what leaves must be an MP4, not a GIF.
+  assert.strictEqual(out.slice(4, 8).toString('ascii'), 'ftyp', 'output is not an MP4');
+  assert.notStrictEqual(out.slice(0, 3).toString('ascii'), 'GIF', 'a GIF was uploaded as video/mp4');
+});
+
 t('reactions try the animation before a static image', () => {
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'engines', 'reactions.js'), 'utf8');
   const exec = src.slice(src.indexOf('async execute'));

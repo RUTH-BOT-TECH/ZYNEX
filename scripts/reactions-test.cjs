@@ -29,13 +29,21 @@ async function ta(name, fn) {
 }
 
 /** Socket that behaves like the deployed container: no ffmpeg, so video fails. */
-function makeSock({ failEverything = false } = {}) {
+/**
+ * @param refuse what the send refuses, if anything.
+ *   'nothing' (default) — everything works; the animated video is the normal path
+ *   'video'            — video sends rejected, as a host without ffmpeg would
+ *   'all'              — nothing works, to check the honest fallback message
+ */
+function makeSock({ refuse = 'nothing' } = {}) {
   const sent = [];
   const sock = {
     sendMessage: async (jid, payload) => {
       const kind = Object.keys(payload).filter((k) => k !== 'caption' && k !== 'mentions').join('+');
-      if (failEverything) throw new Error('boom');
-      if (payload.video) throw new Error("ffmpeg exited with code 1 (spawn ffmpeg ENOENT)");
+      if (refuse === 'all') throw new Error('boom');
+      if (refuse === 'video' && (payload.video || payload.document)) {
+        throw new Error('ffmpeg exited with code 1 (spawn ffmpeg ENOENT)');
+      }
       sent.push({ kind, payload });
       return 'ok';
     },
@@ -75,12 +83,19 @@ function ctx(sock, extra = {}) {
 
   console.log('\n══ sending without ffmpeg ══\n');
 
-  await ta('.kiss delivers an animated image even though video would fail', async () => {
+  await ta('.kiss delivers a looping animation', async () => {
     const { sock, sent } = makeSock();
     const { cmd, replies } = ctx(sock);
     await reactions.execute(cmd);
     assert.strictEqual(sent.length, 1, `expected one send, got ${sent.length} (replies: ${replies})`);
-    assert.ok(sent[0].payload.image, 'must go out as `image`, not `video` — video needs ffmpeg');
+    // The requirement is "an animation arrives", not "it is sent as image".
+    // ffmpeg is present now, so the animated video IS the normal path; it goes
+    // out as an image only when video is unavailable, and either is acceptable
+    // as long as something visible arrives.
+    assert.ok(sent[0].payload.video || sent[0].payload.image, `sent ${sent[0].kind}`);
+    if (sent[0].payload.video) {
+      assert.strictEqual(sent[0].payload.gifPlayback, true, 'an animated video must loop');
+    }
   });
 
   await ta('.hug delivers too', async () => {
@@ -88,17 +103,43 @@ function ctx(sock, extra = {}) {
     const { cmd } = ctx(sock);
     await reactions.execute({ ...cmd, command: 'hug' });
     assert.strictEqual(sent.length, 1);
-    assert.ok(sent[0].payload.image);
+    assert.ok(sent[0].payload.video || sent[0].payload.image, `sent ${sent[0].kind}`);
+  });
+
+  await ta('a refused video is never reported as sent, and the user is told', async () => {
+    const { sock, sent } = makeSock({ refuse: 'video' });
+    const { cmd, replies } = ctx(sock);
+    await reactions.execute(cmd);
+    // Nothing visual could be delivered (video and document both refused), so
+    // the requirement is honesty: no false success, and a caption explaining it.
+    assert.ok(!sent.some((m) => m.payload.video), 'a refused video was reported as sent');
+    assert.ok(
+      replies.some((r) => /could not be attached/i.test(r) || /\*.*\*/.test(r)),
+      `expected a caption explaining the miss, got ${JSON.stringify(replies).slice(0, 120)}`,
+    );
   });
 
   await ta('the media is real bytes, not a URL string', async () => {
     const { sock, sent } = makeSock();
     const { cmd } = ctx(sock);
     await reactions.execute(cmd);
-    const media = sent[0].payload.image;
+    // The payload is now a video (or, if the video send is refused, a document):
+    // the GIF is converted to MP4 first, because uploading GIF bytes under a
+    // video/mp4 mimetype renders as a blank bubble.
+    const media = sent[0].payload.video || sent[0].payload.image || sent[0].payload.document;
     assert.ok(Buffer.isBuffer(media), `expected a Buffer, got ${typeof media}`);
     assert.ok(media.length > 1000, 'suspiciously small payload');
-    assert.strictEqual(media.slice(0, 3).toString('ascii'), 'GIF', 'not GIF data');
+    if (sent[0].payload.video || sent[0].payload.document) {
+      assert.strictEqual(media.slice(4, 8).toString('ascii'), 'ftyp',
+        'a video payload must be a real MP4');
+      assert.notStrictEqual(media.slice(0, 3).toString('ascii'), 'GIF',
+        'raw GIF bytes were uploaded as video/mp4 — this renders blank');
+      assert.strictEqual(sent[0].payload.gifPlayback, true, 'must loop like a gif');
+    } else if (sent[0].payload.document) {
+      assert.strictEqual(sent[0].payload.mimetype, 'video/mp4', 'a document fallback must keep its real type');
+    } else {
+      assert.strictEqual(media.slice(0, 3).toString('ascii'), 'GIF');
+    }
   });
 
   await ta('the caption names the target when one is quoted', async () => {
@@ -114,7 +155,7 @@ function ctx(sock, extra = {}) {
   console.log('\n══ graceful degradation ══\n');
 
   await ta('if every form fails we still say something', async () => {
-    const { sock } = makeSock({ failEverything: true });
+    const { sock } = makeSock({ refuse: 'all' });
     const { cmd, replies } = ctx(sock);
     await reactions.execute(cmd);
     assert.ok(replies.length > 0, 'silence is never acceptable');
