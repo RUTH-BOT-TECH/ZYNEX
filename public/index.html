@@ -251,6 +251,19 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     <button class="btn btn-red" onclick="dc()">🔌 Disconnect</button>
   </div>
 
+  <!-- === SESSIONS CARD === -->
+  <div class="card" id="ses-card" style="display:none">
+    <div class="card-h">
+      <div class="ic">🔗</div>
+      <div>
+        <h3>Linked Accounts</h3>
+        <div class="sub">Every WhatsApp number this bot is attached to</div>
+      </div>
+    </div>
+    <div id="ses-list" style="display:flex;flex-direction:column;gap:10px;margin:6px 0 12px"></div>
+    <button class="btn" onclick="loadSessions()" style="background:transparent;border:1px solid var(--line);color:var(--fg)">🔄 Refresh</button>
+  </div>
+
   <!-- === STATS CARD === -->
   <div class="card">
     <div class="card-h">
@@ -486,7 +499,67 @@ document.getElementById('ph').addEventListener('keydown',function(e){
   if(e.key==='Enter'){e.preventDefault();go();}
 });
 
+// --- manage every linked account, not just the one saved in this browser ---
+async function loadSessions(){
+  let d;
+  try{
+    d = await (await fetch('/api/status',{headers:{'x-site-password':sitePw()}})).json();
+  }catch{ return; }
+  if(!d || !d.authorized){ return; }   // no password yet — nothing to manage
+  const card = document.getElementById('ses-card');
+  const list = document.getElementById('ses-list');
+  const rows = (d.sessions||[]);
+  if(rows.length === 0){
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  list.innerHTML = '';
+  rows.forEach(s=>{
+    const live = s.status === 'connected' && s.inMemory;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:10px';
+    const dot = live ? '🟢' : '⚪';
+    row.innerHTML = '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;font-weight:600;color:#f5f5f7">'+dot+' +'+s.phoneNumber+'</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:2px">'
+      + s.status + (s.inMemory?' · running':' · not running')
+      + ' · '+(s.commandsExecuted||0)+' cmds</div>'
+      + '</div>';
+    const b = document.createElement('button');
+    b.textContent = 'Disconnect';
+    b.style.cssText = 'background:rgba(225,29,42,0.14);border:1px solid rgba(225,29,42,0.5);color:#ff6b76;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer;white-space:nowrap';
+    b.onclick = ()=> disconnectNumber(s.phoneNumber);
+    row.appendChild(b);
+    list.appendChild(row);
+  });
+}
+
+async function disconnectNumber(ph){
+  if(!confirm('Disconnect +'+ph+'?\n\nThe bot stops responding for this number until you pair it again.')) return;
+  let r;
+  try{
+    r = await fetch('/api/disconnect',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-site-password':sitePw()},
+      body:JSON.stringify({phoneNumber:ph})
+    });
+  }catch{ showToast('❌ Network error — not disconnected'); return; }
+  if(!r.ok){
+    let m='HTTP '+r.status;
+    try{ m=(await r.json()).error||m; }catch{}
+    showToast('❌ Not disconnected: '+m);
+    return;
+  }
+  // also unlink it on WhatsApp's side, or the device stays listed in Linked Devices
+  showToast('🔌 Disconnected +'+ph);
+  if(localStorage.getItem('zynex_ph') === ph) localStorage.removeItem('zynex_ph');
+  loadSessions();
+  chk();
+}
+
 chk();
+loadSessions();
 setInterval(chk,5000);
 
 // --- reveal the password box if this deployment requires one (runs on load) ---
