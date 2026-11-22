@@ -187,3 +187,51 @@ never hijacked. Covered by `scripts/freetext-test.cjs`.
 `.chess` `.checkers` `.uno` `.snake` `.tetris` reply with a plain explanation
 that they need a full rules engine WhatsApp messages can't drive, and list the
 playable alternatives. They are **not** faked.
+
+## Chess (`lib/chess.js` + `lib/chessboard.js`)
+
+Real, playable chess. No hand-rolled rules — castling rights, en passant,
+promotion, pins, checkmate, stalemate, threefold repetition and the 50-move rule
+all interact, so legality is delegated to **chess.js** (BSD-2-Clause). The parts
+we built ourselves are the ones users notice.
+
+### How it plays in WhatsApp
+Messages are plain text, so the board is sent as a **rendered PNG** — it looks
+identical on every phone, highlights the last move, and flags check in red.
+
+| command | what it does |
+|---|---|
+| `.chess` | new game vs the computer (you play White) |
+| `.chess @friend` | Player vs Player in the same chat |
+| `.playchess e4` or `.playchess e2e4` | send your move (SAN or from-to) |
+| `.board` | re-send the current position |
+| `.hint` | engine suggests a move for you |
+| `.undo` | take back your move and the reply |
+| `.resign` | resign |
+
+*(`.move` is the maze game, not chess — the names are kept distinct on purpose.)*
+
+### Opponent
+**Stockfish via chess-api.com** — keyless, verified responding:
+
+```
+POST https://chess-api.com/v1
+{"fen":"rnbqkbnr/...","depth":12}
+→ {"move":"e2e4","san":"e4","eval":0.4,...}
+```
+
+Depth scales with `.chess` level. A small opening book answers the first move
+instantly. If the engine is unreachable the bot plays a random legal move and
+**says so in the caption** — it never hangs or pretends.
+
+### Verified
+`scripts/chess-test.cjs` — 18 assertions: board renders as a valid PNG, engine
+replies, illegal moves rejected with a helpful list, wrong player blocked,
+resign/undo/hint work, PvP alternation enforced. A 23-ply game was played to a
+real checkmate (`Qb7#`) with zero state desyncs; stored move history always
+replays to the same FEN the bot rendered.
+
+### Why move history, not just FEN
+A FEN carries no history, which would silently break undo, threefold repetition
+and PGN. Chess state is also flushed to disk **synchronously** after every move —
+a debounced write meant a restart inside 300 ms lost the move.
