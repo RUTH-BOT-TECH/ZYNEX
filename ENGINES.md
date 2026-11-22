@@ -267,3 +267,44 @@ missing native binary degrades instead of breaking the command.
 their highlight while everything still "worked". Both now return
 `{ winner, line }`, and `scripts/board-test.cjs` asserts the win image is **not
 byte-identical** to the pre-win board.
+
+## Converter engine detail (`lib/engines/converter.js`, 54 names)
+
+Three **local** backends — no third-party image service does the work:
+
+| backend | used for |
+|---|---|
+| **sharp** | resize, crop, rotate, blur, sharpen, grayscale, invert, sepia, enhance, hd, upscale, compress, format conversion, stickers, quote cards |
+| **ffmpeg** | audio ↔ video, voice notes, GIF, frame extraction |
+| **imagemagick** | PDF writing (sharp's prebuilt binary has no PDF encoder) |
+
+### Verified commands
+`.resize .crop .rotate .blur .sharpen .grayscale .invert .sepia .enhance .hd
+.upscale .remini .compress .toimage .exif .stiker .ttp .attp .emoji2png .emojimix
+.qc .toaudio .tovn .tovideo .togif .upload .ssweb .txt2pdf .img2pdf .swm`
+
+### Keyless network features (all verified live)
+- **Upload** → `uguu.se` primary, `tmpfiles.org` fallback. Both return a URL that
+  actually serves `image/png` — confirmed by re-fetching the link.
+- **Screenshot** → `image.thum.io` primary, `api.microlink.io` fallback.
+- **Emoji Kitchen** → Google's `gstatic.com` asset host. Real combinations
+  return art; unknown pairs return "no combination exists" rather than breaking.
+
+### Deliberate refusals (with the reason and the alternative)
+`.ocr` `.readtext` — no keyless OCR survives; `ocr.space`'s shared demo key is
+rate-limited (E581) and the free OCR APIs are gone.
+
+`.removebg` — needs a model or a keyed API.
+`.imgbb` `.catbox` `.telegraph` — all reject anonymous uploads now (imgbb wants a
+key, catbox says "Invalid uploader", telegra.ph returns "Unknown error").
+`.doc2pdf` — needs LibreOffice; not installed, cannot be installed without root.
+`.pdf2img` — needs poppler; same constraint.
+
+Each one replies with why and what to use instead — never a silent failure and
+never a fake.
+
+### Notable bugs caught
+- `.toaudio` on a **silent video** gave a generic error; it now says the video
+  has no audio track, which is a normal thing to receive.
+- `convert` was colliding with the currency engine's `.convert 100 USD NGN`;
+  the media converter yields and exposes `.convertmedia` instead.
