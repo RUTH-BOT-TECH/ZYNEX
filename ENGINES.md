@@ -17,23 +17,44 @@ The way real MD bots actually work: **one engine, many names.**
 
 | | count |
 |---|---|
-| Names in catalogue | **1,934** |
+| Names in catalogue | **2,067** |
 | Hand-written command files | **179** |
-| Engine-backed commands | **500** |
-| **Total real implementations** | **679** (33.8%) |
-| Honest "not wired up" stubs | 1,327 |
+| Engine-backed commands | **683** |
+| **Total real implementations** | **862** (41.7%) |
+| Honest "not wired up" stubs | 1,205 |
 
-Before this work the bot had **58** commands. Now **679** actually do something.
+Before this work the bot had **58** commands. Now **862** actually do something.
 
-## The five engines
+## The engines
 
 | Engine | Names | What it does |
 |---|---|---|
-| `text` | 105 | Unicode styles, case, morse/binary/hex, logo images |
-| `tools` | 143 | calc, encode/hash, network, QR, TTS, time, search, translate |
-| `economy` | 91 | wallet, daily, work/mine/fish/hunt, bank, shop, pets, marriage, gamble |
-| `fun` | 89 | jokes, quotes, facts, truth/dare, 8ball, roast, rate, ship, reactions |
+| `group` | 82 | members, admins, polls, warnings, join requests, group settings, rules |
+| `tools` | 127 | calc, encode/hash, network, QR, TTS, time, search, translate |
+| `text` | 104 | Unicode styles, case, morse/binary/hex, logo images |
+| `economy` | 90 | wallet, daily, work/mine/fish/hunt, bank, shop, pets, marriage, gamble |
 | `downloader` | 72 | play/song (Deezer), YouTube search, honest answers elsewhere |
+| `fun` | 57 | jokes, quotes, facts, truth/dare, 8ball, roast, rate, ship |
+| `info` | 55 | country, books, Bible, crypto, trivia, dictionary, poetry |
+| `reactions` | 41 | anime GIFs — `.hug .kiss .slap` +38 |
+| `islamic` | 32 | Quran, prayer times, qibla, hijri, duas |
+| `media` | 23 | cats, dogs, foxes, neko, waifu |
+
+## The duplicate rule
+
+Two engines claiming one name is a bug — the first loaded silently wins and the
+other's code is dead weight. That happened during development (the fun engine
+was swallowing `.advice`, tools was swallowing `.country`).
+
+`npm run audit` now probes **every catalogue name through `match()`** — not just
+`extraNames` — and fails the build on any collision:
+
+```
+✓ no engine claims the same command twice
+✓ audit clean
+```
+
+A hand-written file beating an engine is *expected* precedence, not a collision.
 
 ## Resolution order
 
@@ -68,3 +89,30 @@ npm test           # 53 command files
 npm run test:engines   # 50 engine assertions
 npm run coverage       # JSON coverage stats
 ```
+
+## Group engine detail
+
+No external APIs. Everything is Baileys group metadata.
+
+| Command group | Names |
+|---|---|
+| Members | `.members .listmembers .participants` |
+| Admins | `.admins .listadmins .staff .tagadmin .tagowner` |
+| Info | `.groupinfo .ginfo .grouptitle .gdesc` |
+| Tagging | `.hidetag .tag .tagme .mention` |
+| Polls | `.poll .vote .endpoll .results` |
+| Warnings | `.warn .warnings .unwarn .resetwarn .clearwarns` |
+| Join requests | `.requests .approve .reject .approveall .rejectall` |
+| Settings | `.announce .restrict .lockgroup .unlockgroup .ephemeral` |
+| Activity | `.groupstats .activity .inactive .mostactive` |
+| Rules | `.rules .setrules` |
+
+Safety decisions:
+
+- Every command checks the sender is **group admin** or bot owner.
+- Anything requiring admin rights verifies the **bot itself** is admin first,
+  and says so plainly instead of failing silently.
+- `.kickall` is deliberately refused — mass removal trips WhatsApp's abuse
+  detection and gets the number banned. The warning system with auto-kick
+  at the limit is the safe equivalent.
+- Warnings persist in `data/groups.json` across restarts.
