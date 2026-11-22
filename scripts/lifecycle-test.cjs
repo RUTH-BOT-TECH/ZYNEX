@@ -158,5 +158,50 @@ t('.shutdown marks "stopped" and is NOT revived on boot', () => {
   assert.ok(/Reconnecting 0 of 1/.test(line), `revived a session the user stopped: ${line}`);
 });
 
+console.log('\n══ disconnect removes the record ══\n');
+
+t('removeSession works with no live socket', () => {
+  // It used to `if (!s) return;` — so after a restart, or once a session was
+  // marked disconnected, pressing Disconnect did nothing at all.
+  const src = code('lib/sessionManager.js');
+  const fn = src.slice(src.indexOf('async function removeSession'));
+  const body = fn.slice(0, fn.indexOf('return { ok: true }'));
+  assert.ok(!/^\s*if \(!s\) return;\s*$/m.test(body), 'must not bail out when the socket is gone');
+  assert.ok(/prisma\.botSession\.findUnique/.test(body), 'must fall back to the stored record');
+});
+
+t('the row is DELETED, not left marked disconnected', () => {
+  const src = code('lib/sessionManager.js');
+  const fn = src.slice(src.indexOf('async function removeSession'));
+  const body = fn.slice(0, fn.indexOf('return { ok: true }'));
+  assert.ok(/botSession\.delete\(/.test(body), 'a disconnected row stayed listed forever');
+});
+
+t('the db layer actually supports delete and deleteMany', () => {
+  const db = code('lib/db.js');
+  assert.ok(/delete:\s*async/.test(db), 'there was no delete operation at all');
+  assert.ok(/deleteMany:\s*async/.test(db));
+});
+
+t('delete really removes a row', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zynex-del-'));
+  const script = `
+    const { prisma, ensureDB } = require('./lib/db');
+    (async () => {
+      await ensureDB();
+      const row = await prisma.botSession.create({ data: { phoneNumber: '2348021016309', status: 'connected' } });
+      await prisma.botSession.delete({ where: { id: row.id } });
+      const left = await prisma.botSession.findMany({ where: {} });
+      console.log('LEFT=' + left.length);
+      process.exit(0);
+    })();
+  `;
+  const out = execFileSync('node', ['-e', script], {
+    cwd: ROOT, encoding: 'utf8',
+    env: { ...process.env, DB_FILE: path.join(dir, 'db.json'), AUTH_DIR_ROOT: path.join(dir, 'auth_state') },
+  });
+  assert.ok(/LEFT=0/.test(out), `row survived deletion: ${out.trim()}`);
+});
+
 console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);
 process.exit(fail === 0 ? 0 : 1);
