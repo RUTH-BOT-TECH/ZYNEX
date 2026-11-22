@@ -158,6 +158,60 @@ t('registerOwnIdentity tolerates missing fields', () => {
   jid.registerOwnIdentity({ phoneNumber: '2340000000000' });
 });
 
+console.log('\n══ two sessions must not leak identity (production bug) ══\n');
+
+t("one session's own LID never becomes another session's", () => {
+  // Live log: the ZYNEX session (2349165331115) replied to RUTH
+  // (48190237720785@lid, senderPn 2348021016309) and REWROTE her address to her
+  // PN, because registerOwnIdentity had learned *RUTH* as its own lid. Her
+  // device is keyed on the LID, so her replies stopped decrypting.
+  const zynexSock = { user: { id: '2349165331115:12@s.whatsapp.net' } };
+
+  // ZYNEX registers only its own identity
+  jid.registerOwnIdentity({
+    phoneNumber: '2349165331115',
+    lid: '46274514571441:12@lid',
+    id: '2349165331115:12@s.whatsapp.net',
+  });
+
+  // RUTH is a peer of that session and must stay untouched
+  assert.strictEqual(
+    jid.resolveSendJid('48190237720785@lid', zynexSock),
+    '48190237720785@lid',
+    'a peer from another session was rewritten as "self" — this is the bug',
+  );
+
+  // while ZYNEX's own lid still resolves
+  assert.strictEqual(
+    jid.resolveSendJid('46274514571441@lid', zynexSock),
+    '2349165331115@s.whatsapp.net',
+  );
+});
+
+t('the two accounts keep separate maps', () => {
+  jid.registerOwnIdentity({
+    phoneNumber: '2348021016309',
+    lid: '48190237720785:12@lid',
+    id: '2348021016309:12@s.whatsapp.net',
+  });
+  const ruthSock = { user: { id: '2348021016309:12@s.whatsapp.net' } };
+  // RUTH's session resolves her own lid...
+  assert.strictEqual(jid.resolveSendJid('48190237720785@lid', ruthSock), '2348021016309@s.whatsapp.net');
+  // ...and ZYNEX's lid is a peer to her, not self
+  assert.strictEqual(jid.resolveSendJid('46274514571441@lid', ruthSock), '46274514571441@lid');
+});
+
+t('registerOwnIdentity cannot be tricked by a candidate LID list', () => {
+  // the old implementation iterated [lid, phoneNumber, id] and recorded any LID
+  const before = jid.ownMap('2349999999999').size;
+  jid.registerOwnIdentity({
+    phoneNumber: '2349999999999',
+    lid: '11111111111111@lid',
+    id: '2349999999999:1@s.whatsapp.net',
+  });
+  assert.strictEqual(jid.ownMap('2349999999999').size, before + 2, 'own lid + own pn only');
+});
+
 console.log('\n══ learning from inbound keys ══\n');
 
 t('learning a participant PN does not make their LID rewrite-able', () => {
