@@ -323,7 +323,7 @@ function setLive(state){
 
 async function chk(){
   try{
-    const r=await fetch('/api/status');
+    const r=await fetch('/api/status',{headers:{'x-site-password':sitePw()}});
     const d=await r.json();
     setLive('online');
     document.getElementById('sa').textContent=d.activeSessions;
@@ -353,6 +353,14 @@ async function chk(){
   }
 }
 
+
+// Password the owner typed earlier. Sent on every authenticated call so the
+// dashboard keeps working even where the auth cookie is not available.
+function sitePw(){
+  const el=document.getElementById('pw');
+  return (el&&el.value)||localStorage.getItem('zynex_pw')||'';
+}
+
 async function go(){
   const ph=document.getElementById('ph').value.replace(/\D/g,'');
   const er=document.getElementById('er');
@@ -371,7 +379,7 @@ async function go(){
     const r=await fetch('/api/pair',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({phoneNumber:ph,password:pw})
+      body:JSON.stringify({phoneNumber:ph,password:sitePw()})
     });
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Failed to generate code');
@@ -463,7 +471,7 @@ setInterval(chk,5000);
 // --- reveal the password box if this deployment requires one (runs on load) ---
 (async()=>{
   try{
-    const st=await (await fetch('/api/status')).json();
+    const st=await (await fetch('/api/status',{headers:{'x-site-password':sitePw()}})).json();
     if(st&&st.authRequired){
       const w=document.getElementById('pw-wrap');
       if(w)w.style.display='block';

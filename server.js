@@ -65,6 +65,57 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ============ ACCESS CONTROL ============
+
+/**
+ * ONE gate for everything that isn't purely decorative.
+ *
+ * Only /api/pair used to check SITE_PASSWORD. That left /api/status and
+ * /api/session/:phone serving every paired phone number to anybody who loaded
+ * the URL, and /api/disconnect let a stranger tear down a live WhatsApp session
+ * with no credentials at all — verified against the deployed site.
+ *
+ * The password is sent once, then kept in an httpOnly cookie, so the dashboard
+ * works normally without re-prompting on every poll.
+ */
+const SITE_PASSWORD = process.env.SITE_PASSWORD || '';
+const TOKEN = SITE_PASSWORD
+  ? require('crypto').createHash('sha256').update(`zynex:${SITE_PASSWORD}`).digest('hex')
+  : '';
+
+function parseCookies(req) {
+  const raw = req.headers.cookie || '';
+  const out = {};
+  for (const part of raw.split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return out;
+}
+
+function isAuthorized(req) {
+  if (!SITE_PASSWORD) return true; // no password configured = open (dev default)
+  // The cookie holds the hash; the body/header carry the password the user typed.
+  // Comparing the raw password to TOKEN (as a first draft did) rejected the
+  // correct password, which is exactly the class of bug this whole change is about.
+  if (parseCookies(req).zynex_auth === TOKEN) return true;
+  const typed = req.body?.password || req.headers['x-site-password'];
+  return Boolean(typed) && typed === SITE_PASSWORD;
+}
+
+function setAuthCookie(res) {
+  res.setHeader(
+    'Set-Cookie',
+    `zynex_auth=${TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
+  );
+}
+
+/** Express middleware: 401 unless the caller proved they know the password. */
+function requireAuth(req, res, next) {
+  if (isAuthorized(req)) return next();
+  return res.status(401).json({ error: 'Wrong site password' });
+}
+
 // ============ API ENDPOINTS ============
 
 app.get('/health', (req, res) => {
@@ -78,16 +129,32 @@ app.get('/health', (req, res) => {
 // Bot status — overall + list of all sessions
 app.get('/api/status', async (req, res) => {
   try {
+    const authed = isAuthorized(req);
     const sessions = await sessionManager.getAllSessions();
     const activeSessions = sessions.filter(s => s.status === 'connected').length;
     res.json({
       botName: BOT_NAME,
       version: '1.0.0',
       // tells the page whether to show a password box — never the password itself
-      authRequired: Boolean(process.env.SITE_PASSWORD),
+      authRequired: Boolean(SITE_PASSWORD),
+      authorized: authed,
       activeSessions,
       totalPaired: sessions.length,
-      sessions: sessions.slice(0, 20),
+      // Counts are public so the page can render stats; the records are not.
+      // Every field in them includes a phone number.
+      sessions: authed
+        ? sessions.slice(0, 20)
+        : sessions.slice(0, 20).map(s => ({
+            id: s.id,
+            status: s.status,
+            inMemory: s.inMemory,
+            messagesReceived: s.messagesReceived,
+            commandsExecuted: s.commandsExecuted,
+            createdAt: s.createdAt,
+            phoneNumber: '•••••••' + String(s.phoneNumber || '').slice(-2),
+          })),
+      // the page needs to know to ask for the password
+      authHint: SITE_PASSWORD && !authed ? 'password required for full access' : undefined,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -106,9 +173,10 @@ app.post('/api/pair', async (req, res) => {
       });
     }
 
-    if (process.env.SITE_PASSWORD && req.body?.password !== process.env.SITE_PASSWORD) {
+    if (!isAuthorized(req)) {
       return res.status(401).json({ error: 'Wrong site password' });
     }
+    setAuthCookie(res); // so the rest of the dashboard stops asking
 
     // Check if this number is already paired AND active
     const existing = await prisma.botSession.findUnique({ where: { phoneNumber } });
@@ -149,7 +217,7 @@ app.post('/api/pair', async (req, res) => {
 });
 
 // Disconnect a specific session by phone number
-app.post('/api/disconnect', async (req, res) => {
+app.post('/api/disconnect', requireAuth, async (req, res) => {
   try {
     const { phoneNumber } = req.body;
     if (!phoneNumber) return res.status(400).json({ error: 'phoneNumber required' });
@@ -165,7 +233,7 @@ app.post('/api/disconnect', async (req, res) => {
 });
 
 // Get details for a specific session (by phone number)
-app.get('/api/session/:phone', async (req, res) => {
+app.get('/api/session/:phone', requireAuth, async (req, res) => {
   try {
     const session = await prisma.botSession.findUnique({
       where: { phoneNumber: req.params.phone },
