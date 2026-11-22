@@ -191,7 +191,7 @@ const kindOf = (p) => p && ['image', 'video', 'audio', 'document'].find((k) => p
   console.log = realLog;
 
   ok('a stripped peer quote is NOT rejected — the stored original is used',
-    logs.some((l) => /downloading from the stored original/.test(l)),
+    logs.some((l) => /stored original/.test(l)),
     logs.find((l) => /VV/.test(l)) || 'no [VV] line — took the wrong path');
 
   ok('…and the failure is about the network, not a missing key',

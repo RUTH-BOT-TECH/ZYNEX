@@ -157,7 +157,7 @@ function viewOnceMessage(id) {
   await t('.vv consults the cache before the network', () => {
     const src = fs.readFileSync(path.join(ROOT, 'lib', 'commands', 'vv.js'), 'utf8');
     assert.ok(/getCachedMedia/.test(src), '.vv must read the cache');
-    assert.ok(/serving from the media cache/.test(src), 'and say so');
+    assert.ok(/served from the media cache/.test(src), 'and say so');
   });
 
   await t('media is captured for both notify and append batches', () => {
