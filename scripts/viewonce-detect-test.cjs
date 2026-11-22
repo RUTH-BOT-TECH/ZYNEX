@@ -38,17 +38,33 @@ t('Baileys 7 exposes an android identity', () => {
   assert.deepStrictEqual(b, ['ZYNEX', 'Android', '']);
 });
 
-t('the socket announces Android, not Chrome/Ubuntu', () => {
+/**
+ * The browser identity must be a REAL platform, because Baileys derives the
+ * platform id from the first element only:
+ *
+ *   getPlatformId(browser) => proto.DeviceProps.PlatformType[browser[0].toUpperCase()] || '1'
+ *
+ * `Browsers.android(name)` returns [name, 'Android', ''] — so the platform came
+ * from the bot name, 'ZYNEX-MD' matched nothing, and it silently fell back to
+ * CHROME while the OS said Android. WhatsApp refused to link the device.
+ */
+t('the browser identity resolves to a real platform type', () => {
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
-  assert.ok(/Browsers\.android/.test(src),
-    'still pairing as a web-class device — view-once media is withheld from those');
-  assert.ok(/WA_BROWSER/.test(src), 'no way to fall back to the web identity');
+  const m = /browser:\s*\[\s*'([^']+)'/.exec(src);
+  assert.ok(m, 'browser identity is not a literal array any more');
+  const { proto } = require('@whiskeysockets/baileys');
+  const platform = proto.DeviceProps.PlatformType[m[1].toUpperCase()];
+  assert.ok(platform !== undefined,
+    `'${m[1]}' is not a PlatformType — it silently falls back to CHROME`);
 });
 
-t('the android path is the default', () => {
+t('the identity does not use the bot name as a browser name', () => {
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
-  assert.ok(/process\.env\.WA_BROWSER === 'web'/.test(src),
-    'the web identity must be the opt-in, not the default');
+  // Strip comments first: the explanation above mentions the call by name, and a
+  // source-grepping test matching its own documentation is a trap hit before.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(!/Browsers\.android\(/.test(code),
+    'Browsers.android(name) puts the bot name in the browser field, which is not a platform');
 });
 
 console.log('\n══ detection across every wrapper ══\n');
