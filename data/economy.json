@@ -27,10 +27,40 @@
       "streak": 1,
       "lastDaily": 1795337799805,
       "createdAt": 1795337799788
+    },
+    "test1795338706216": {
+      "id": "test1795338706216",
+      "wallet": 1801,
+      "bank": 100,
+      "xp": 55,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [
+        {
+          "name": "Rex",
+          "kind": "dog",
+          "hunger": 100,
+          "level": 1
+        }
+      ],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 1,
+      "lastDaily": 1795338706231,
+      "createdAt": 1795338706217
     }
   },
   "cooldowns": {
     "test1795337799788:daily:daily": 1795337799804,
-    "test1795337799788:earn:work": 1795337799805
+    "test1795337799788:earn:work": 1795337799805,
+    "test1795338706216:daily:daily": 1795338706231,
+    "test1795338706216:earn:work": 1795338706232
   }
 }

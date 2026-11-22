@@ -11,7 +11,8 @@
     "test:network": "node scripts/smoke-test.cjs --network",
     "brand-check": "./scripts/brand-check.sh",
     "test:engines": "node scripts/engine-test.cjs",
-    "coverage": "node -e \"const r=require('./lib/registry');console.log(JSON.stringify(r.stats,null,2))\""
+    "coverage": "node -e \"const r=require('./lib/registry');console.log(JSON.stringify(r.stats,null,2))\"",
+    "audit": "node scripts/audit-commands.cjs"
   },
   "engines": {
     "node": ">=18.0.0"
