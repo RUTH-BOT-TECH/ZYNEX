@@ -97,5 +97,31 @@ t('the store evicts rather than growing without bound', () => {
   assert.ok(/MAX_STORED/.test(src), 'an unbounded store is a memory leak');
 });
 
+console.log('\n══ self-send device refresh ══\n');
+
+t('a self-send forces a fresh device list', () => {
+  // Our own device id climbed :11 -> :12 -> :13 -> :14 in one session. Baileys
+  // builds ONLY the deviceSentMessage copy for a self-send, addressed per device
+  // id from a cache, so a stale entry means no fallback and a permanent
+  // "Waiting for this message".
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
+  assert.ok(/useUserDevicesCache:\s*false/.test(src), 'must disable the device cache for self-sends');
+  assert.ok(/self-send — forcing a fresh device list/.test(src), 'must log it');
+});
+
+t('the refresh is applied only to self-sends, not every send', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
+  // it must be guarded by a comparison against our own id
+  assert.ok(/bare\(target\) === meId/.test(src), 'unconditional cache-busting would be wasteful');
+});
+
+console.log('\n══ .vv on an unrecoverable stub ══\n');
+
+t('.vv explains that a self-sent view-once is unrecoverable', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'commands', 'vv.js'), 'utf8');
+  assert.ok(/no retry will change that/i.test(src), 'must not imply a transient failure');
+  assert.ok(/never gave this device the media key/i.test(src), 'must give the real reason');
+});
+
 console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);
 process.exit(fail === 0 ? 0 : 1);
