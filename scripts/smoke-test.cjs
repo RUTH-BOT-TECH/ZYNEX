@@ -97,7 +97,10 @@ const baseCtx = (args, text) => {
     }
   }
 
-  process.exit = realExit;
+  // NOTE: do NOT restore process.exit here. Commands like `.shutdown` arm a
+  // `setTimeout(() => process.exit(1), 2000)`; restoring the real exit lets that
+  // timer fire after the report and silently turns a green run into exit 1.
+  // We keep the stub installed and exit deliberately at the very end instead.
   if (exitCalls.length) console.log(`\n  (process.exit called ${exitCalls.length}x by commands: ${exitCalls.join(',')} — stubbed)`);
 
   const failed = results.filter((r) => !r.ok);
@@ -106,6 +109,8 @@ const baseCtx = (args, text) => {
   if (failed.length) {
     console.log('\n\x1b[31mFailures:\x1b[0m');
     failed.forEach((f) => console.log(`  • ${f.name}: ${f.note}`));
-    process.exit(1);
+    realExit(1);
+    return;
   }
+  realExit(0);
 })();
