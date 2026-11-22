@@ -1,0 +1,19 @@
+[
+  {
+    "id": "sess_1795352877283_2nf2vq",
+    "createdAt": "2026-11-22T13:07:57.283Z",
+    "updatedAt": "2026-11-22T13:08:14.210Z",
+    "lastActiveAt": "2026-11-22T13:07:57.283Z",
+    "messagesReceived": 0,
+    "messagesSent": 0,
+    "commandsExecuted": 0,
+    "phoneNumber": "2348012345678",
+    "status": "disconnected",
+    "authFolder": "/home/user/zynex-md/auth_state/2348012345678",
+    "mode": "public",
+    "prefix": ".",
+    "antiDelete": true,
+    "antiCall": true,
+    "autoReadStatus": true
+  }
+]
