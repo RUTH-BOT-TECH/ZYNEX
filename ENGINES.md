@@ -17,13 +17,13 @@ The way real MD bots actually work: **one engine, many names.**
 
 | | count |
 |---|---|
-| Names in catalogue | **2,111** |
+| Names in catalogue | **2,113** |
 | Hand-written command files | **179** |
-| Engine-backed commands | **906** |
-| **Total real implementations** | **1,085** (51.4%) |
-| Honest "not wired up" stubs | 1,026 |
+| Engine-backed commands | **962** |
+| **Total real implementations** | **1,141** (54.0%) |
+| Honest "not wired up" stubs | 972 |
 
-Before this work the bot had **58** commands. Now **1,085** actually do something,
+Before this work the bot had **58** commands. Now **1,141** actually do something,
 and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 
 ## The engines
@@ -41,6 +41,7 @@ and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 | `info` | 55 | country, books, Bible, crypto, trivia, dictionary, poetry |
 | `audio` | 46 | TTS, voice effects, audio splicing |
 | `search` | 46 | music, anime, TV, sport scores, news, food, how-to, rhymes |
+| `ai` | 56 | chat, codegen, rewriting + image generation on the one free model |
 | `reactions` | 41 | anime GIFs — `.hug .kiss .slap` +38 |
 | `islamic` | 32 | Quran, prayer times, qibla, hijri, duas |
 | `media` | 23 | cats, dogs, foxes, neko, waifu |
@@ -103,6 +104,7 @@ Drop the file in — the registry picks it up on boot. No wiring.
 | `test:freetext` | free-text routing | 4 |
 | `test:search` | **live** probes of all 46 search routes | 64 |
 | `test:logos` | every logo returns a decodable PNG | 86 |
+| `test:ai` | refusals, throttle contract, one live text + image | 39 |
 | `test:nodead` | no command is a placeholder | all 1,080 |
 | `audit` | one owner per name | 2,108 names |
 
@@ -350,6 +352,63 @@ bytes or the command says what went wrong.
 Proof: `samples/textmaker-proof.html` — regenerable with
 `node scripts/logo-proof.cjs`. Suite: `npm run test:logos`, 86 assertions, every
 one of them decoding the returned bytes with sharp.
+
+## AI engine detail (`lib/engines/ai.js`, 56 names)
+
+Two keyless endpoints, verified live:
+
+| | Endpoint | Model | Limit (measured) |
+|---|---|---|---|
+| Text | `text.pollinations.ai/<prompt>` | `gpt-oss-20b` | ~3 replies / 45s per IP |
+| Image | `image.pollinations.ai/prompt/<p>?width&height&seed` | `sana` | 1 image / 45s per IP, 503 when busy |
+
+### The three honesty problems
+
+**1. There is exactly one text model and one image model.**
+`models` returns a single entry. So `.gpt4 .claude .gemini .grok .llama .mistral
+.deepseek .bard .copilot .chatgpt` cannot be those models — they are aliases for
+the same backend. Each reply is headed `🤖 *<command>* · AI` and says which
+backend answered. Nobody is told they reached GPT-5.
+
+**2. Photo restyling does not exist here.**
+`.aiface .faceswap .deepfake` imply changing *your* photo. Probed directly: two
+generations of the same prompt and seed, one with `&image=<reference>`, came back
+byte-different but visually identical — same fox, same pose. There is no real
+img2img, so these commands refuse and name what works (`.imagine`, `.ghibli`,
+`.convert`). `.deepfake` also covers voice replacement, which is refused outright.
+
+**3. Speech input and voice cloning are unavailable.**
+`.stt .transcribe .aivoice` refuse. No keyless STT exists from this host, and
+copying a voice is not something this bot should offer anyway. `.tts` works for the
+opposite direction and is named in every refusal.
+
+### The queue (this is the part that makes it usable)
+
+A WhatsApp group is far faster than 3 requests per 45 seconds, so the engine keeps
+**one queue per lane** for the whole bot:
+
+- `TEXT_GAP_MS = 16s`, `IMAGE_GAP_MS = 48s` — under the measured ceilings
+- jobs are serialised on a promise chain, so ten people asking at once get answers
+  in order instead of ten simultaneous 402s
+- `503` and `402` are retried up to 3×, honouring the `wait N seconds` hint the
+  service returns in its error body
+- when the wait would be long, the command says `⏳ busy right now, about Ns`
+  rather than hanging
+
+Tested: three consecutive `.regex` calls completed at 514ms, 15.8s, 16.0s — the
+spacing is real, and the retry path recovers from a transient 404.
+
+### What genuinely works
+
+`.chat .ai .assistant .explain .eli5 .codegen .debugcode .explaincode .refactor
+.regex .sql .grammar .proofread .rewrite .paraphrase .expand_text .simplify
+.summarize .summary` — plus `.imagine .aiart .aiimage .txt2img .ghibli .anime2d
+.animeai .pixar .disney3d .cartoonify .caricature .figurine` and the image-name
+aliases `.dalle .midjourney .flux .stablediffusion`, all of which state they are
+`sana` under a style preset.
+
+Style presets are prompt suffixes, not separate models:
+`ghibli` → *studio ghibli style, soft watercolour background, gentle warm light*.
 
 ## Search engine detail (`lib/engines/search.js`, 46 names)
 

@@ -47,6 +47,8 @@ why every entry here has its payload shape noted.
 | `api.qrserver.com/v1/create-qr-code` | `.qr` | PNG |
 | `api.deezer.com/search` | `.play .song` | 30s official preview + artwork |
 | `itunes.apple.com/search` | `.play` fallback | 30s preview |
+| `text.pollinations.ai/<prompt>` | `.chat .explain .codegen` +15 | plain-text answer, keyless |
+| `image.pollinations.ai/prompt/<p>` | `.imagine .aiart .ghibli` +12 | JPEG bytes, keyless |
 | `api.deezer.com/search` | `.track .album .artist .playlist .genre` | tracks, albums, artists, playlists |
 | `graphql.anilist.co` (**POST**) | `.anilist .manga .animeinfo .mangainfo .character` | anime + manga metadata |
 | `api.tvmaze.com/search/shows` | `.series .tv .movie .movies .imdb` | `[{show:{…}}]` |
@@ -75,6 +77,11 @@ why every entry here has its payload shape noted.
 | `world.openfoodfacts.org/cgi/search.pl` | **503 much of the time** — the engine falls back to `.net` and `search.openfoodfacts.org` |
 | `site.api.espn.com` | **403 to any bot user-agent**, 200 to a browser UA. Send a browser UA. |
 | `api.openfoodfacts` legacy search | slow (2-4s) even when it does answer |
+| `text.pollinations.ai` | **~3 replies / 45s per IP**, 402 when over |
+| `image.pollinations.ai` | **1 image / 45s per IP**, 503 when busy |
+| `text.pollinations.ai/openai` (POST) | works but throttles harder than the GET route |
+| `duckduckgo.com/duckchat/v1` | 418 `ERR_BN_LIMIT` — needs JS proof-of-work, unusable server-side |
+| `api.deepinfra.com`, `api.airforce`, `chat.webllm.ai` | 401 / 402 / 405 — no free anonymous access |
 
 ## Dead — removed or replaced
 

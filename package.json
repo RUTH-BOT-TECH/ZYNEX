@@ -15,14 +15,15 @@
     "audit": "node scripts/audit-commands.cjs",
     "test:games": "node scripts/games-test.cjs",
     "test:freetext": "node scripts/freetext-test.cjs",
-    "test:all": "node scripts/smoke-test.cjs && node scripts/engine-test.cjs && node scripts/games-test.cjs && node scripts/chess-test.cjs && node scripts/board-test.cjs && node scripts/converter-test.cjs && node scripts/freetext-test.cjs && node scripts/search-test.cjs && node scripts/logo-test.cjs && node scripts/no-dead-commands.cjs && node scripts/audit-commands.cjs",
+    "test:all": "node scripts/smoke-test.cjs && node scripts/engine-test.cjs && node scripts/games-test.cjs && node scripts/chess-test.cjs && node scripts/board-test.cjs && node scripts/converter-test.cjs && node scripts/freetext-test.cjs && node scripts/search-test.cjs && node scripts/logo-test.cjs && node scripts/ai-test.cjs && node scripts/no-dead-commands.cjs && node scripts/audit-commands.cjs",
     "test:chess": "node scripts/chess-test.cjs",
     "test:boards": "node scripts/board-test.cjs",
     "test:converter": "node scripts/converter-test.cjs",
     "test:converter-render": "node scripts/converter-render-test.cjs",
     "test:nodead": "node scripts/no-dead-commands.cjs",
     "test:search": "node scripts/search-test.cjs",
-    "test:logos": "node scripts/logo-test.cjs"
+    "test:logos": "node scripts/logo-test.cjs",
+    "test:ai": "node scripts/ai-test.cjs"
   },
   "engines": {
     "node": ">=18.0.0"
