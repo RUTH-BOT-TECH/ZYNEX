@@ -1,0 +1,41 @@
+{
+  "name": "zynex-md",
+  "version": "1.0.0",
+  "description": "ZYNEX-MD \u2014 WhatsApp bot with 57+ commands, AI auto-reply, anti-commands, group tools.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node scripts/smoke-test.cjs",
+    "test:network": "node scripts/smoke-test.cjs --network",
+    "brand-check": "./scripts/brand-check.sh"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.6.0",
+    "axios": "^1.7.2",
+    "better-sqlite3": "^11.3.0",
+    "body-parser": "^1.20.2",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "form-data": "^4.0.6",
+    "pino": "^9.3.2",
+    "sharp": "^0.35.4"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "zynex-md",
+    "zynex",
+    "pairing-code",
+    "multi-user"
+  ],
+  "author": "ZYNEX",
+  "license": "MIT"
+}
