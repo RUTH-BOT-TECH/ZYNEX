@@ -419,6 +419,48 @@
       "streak": 1,
       "lastDaily": 1795341970122,
       "createdAt": 1795341970108
+    },
+    "2348000000001": {
+      "id": "2348000000001",
+      "wallet": 650,
+      "bank": 0,
+      "xp": 0,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 0,
+      "lastDaily": 0,
+      "createdAt": 1795342159849
+    },
+    "234800000g.us": {
+      "id": "234800000g.us",
+      "wallet": 650,
+      "bank": 0,
+      "xp": 0,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 0,
+      "lastDaily": 0,
+      "createdAt": 1795342181870
     }
   },
   "cooldowns": {
