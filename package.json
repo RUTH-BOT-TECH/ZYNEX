@@ -15,7 +15,7 @@
     "audit": "node scripts/audit-commands.cjs",
     "test:games": "node scripts/games-test.cjs",
     "test:freetext": "node scripts/freetext-test.cjs",
-    "test:all": "node scripts/harness-test.cjs && node scripts/smoke-test.cjs && node scripts/engine-test.cjs && node scripts/games-test.cjs && node scripts/chess-test.cjs && node scripts/board-test.cjs && node scripts/converter-test.cjs && node scripts/freetext-test.cjs && node scripts/search-test.cjs && node scripts/logo-test.cjs && node scripts/sticker-test.cjs && node scripts/ai-test.cjs && node scripts/security-test.cjs && node scripts/stalk-test.cjs && node scripts/no-dead-commands.cjs && node scripts/audit-commands.cjs",
+    "test:all": "node scripts/harness-test.cjs && node scripts/smoke-test.cjs && node scripts/engine-test.cjs && node scripts/games-test.cjs && node scripts/chess-test.cjs && node scripts/board-test.cjs && node scripts/converter-test.cjs && node scripts/freetext-test.cjs && node scripts/search-test.cjs && node scripts/logo-test.cjs && node scripts/sticker-test.cjs && node scripts/art-util-test.cjs && node scripts/ai-test.cjs && node scripts/security-test.cjs && node scripts/stalk-test.cjs && node scripts/no-dead-commands.cjs && node scripts/audit-commands.cjs",
     "test:chess": "node scripts/chess-test.cjs",
     "test:boards": "node scripts/board-test.cjs",
     "test:converter": "node scripts/converter-test.cjs",
@@ -27,13 +27,15 @@
     "test:security": "node scripts/security-test.cjs",
     "test:stalk": "node scripts/stalk-test.cjs",
     "test:harness": "node scripts/harness-test.cjs",
-    "test:stickers": "node scripts/sticker-test.cjs"
+    "test:stickers": "node scripts/sticker-test.cjs",
+    "test:art": "node scripts/art-util-test.cjs"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.6.0",
+    "adm-zip": "^0.5.16",
     "axios": "^1.7.2",
     "better-sqlite3": "^11.3.0",
     "body-parser": "^1.20.2",
@@ -43,7 +45,9 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "ffmpeg-static": "^5.3.0",
+    "figlet": "^1.13.0",
     "form-data": "^4.0.6",
+    "pdf-parse": "^2.4.5",
     "pino": "^9.3.2",
     "sharp": "^0.35.5"
   },
