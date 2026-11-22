@@ -103,10 +103,35 @@ t('orphan folders for unknown numbers are cleared', () => {
 
 console.log('\n══ boot wiring ══\n');
 
-t('server.js pins the session DB to the volume', () => {
+t('the session DB resolves onto the volume at require time', () => {
+  // The path must be decided when db.js loads, not later: an earlier version
+  // set DB_FILE inside start(), which ran after db.js had already captured the
+  // off-volume default, so every redeploy silently booted an empty database.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'db.js'), 'utf8');
+  assert.ok(/\.sessions\.json/.test(src), 'DB must be stored on the volume');
+  assert.ok(!/^const DB_FILE = process\.env\.DB_FILE \|\| path\.join\(__dirname, '\.\.'$/m.test(src),
+    'must not hard-default to the repo root');
+});
+
+t('a boot with a volume puts the DB there', () => {
+  const vol = path.join(tmpRoot, 'dbvol');
+  fs.mkdirSync(vol, { recursive: true });
+  // Clear DB_FILE for the child: requiring db.js in THIS process already set
+  // it, and env is inherited — otherwise the test just reads its own leftover.
+  const out = require('child_process').execSync(
+    `node -e "require('./lib/db');console.log(process.env.DB_FILE)"`,
+    {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf8',
+      env: { ...process.env, AUTH_DIR_ROOT: vol, DB_FILE: '' },
+    },
+  ).trim();
+  assert.ok(out.startsWith(vol), `expected a path under ${vol}, got ${out}`);
+  assert.ok(out.endsWith('.sessions.json'));
+});
+
+t('server.js still sweeps orphans at boot', () => {
   const s = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-  assert.ok(s.includes('process.env.DB_FILE'), 'DB_FILE must be set at boot');
-  assert.ok(s.includes('.sessions.json'), 'DB must live on the volume');
   assert.ok(s.includes('sweepOrphanAuthFolders'), 'boot must sweep orphans');
 });
 

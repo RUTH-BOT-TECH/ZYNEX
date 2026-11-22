@@ -256,27 +256,17 @@ app.get('*', (req, res) => {
 
 // ============ START ============
 async function start() {
-  // ★ Keep the session DB on the persistent volume.
-  // It is a JSON file at /app/sessions.json, which sits OUTSIDE the auth_state
-  // volume. Every redeploy therefore booted an empty database and silently
-  // forgot every paired account, while the real Signal creds stayed on the
-  // volume forever. Those unowned folders pile up as orphans and eventually
-  // poison a fresh pairing. Point DB_FILE at the volume before db.js loads.
-  if (!process.env.DB_FILE) {
-    const volDir = path.join(__dirname, 'auth_state');
-    if (fs.existsSync(volDir)) {
-      process.env.DB_FILE = path.join(volDir, '.sessions.json');
-      const legacy = path.join(__dirname, 'sessions.json');
-      if (!fs.existsSync(process.env.DB_FILE) && fs.existsSync(legacy)) {
-        try {
-          fs.copyFileSync(legacy, process.env.DB_FILE);
-          console.log('[BOOT] Migrated sessions.json onto the persistent volume');
-        } catch (e) {
-          console.error('[BOOT] Could not migrate sessions.json:', e.message);
-        }
-      }
-      console.log(`[BOOT] Session DB: ${process.env.DB_FILE}`);
+  // db.js resolves its own path (preferring the auth_state volume) at require
+  // time. All that is left to do here is carry over a legacy off-volume DB once.
+  try {
+    const legacy = path.join(__dirname, 'sessions.json');
+    if (process.env.DB_FILE && fs.existsSync(process.env.DB_FILE) === false && fs.existsSync(legacy)) {
+      fs.copyFileSync(legacy, process.env.DB_FILE);
+      console.log('[BOOT] Migrated legacy sessions.json onto the persistent volume');
     }
+    console.log(`[BOOT] Session DB: ${process.env.DB_FILE}`);
+  } catch (e) {
+    console.error('[BOOT] Session DB migration error:', e.message);
   }
 
   await ensureDB();
