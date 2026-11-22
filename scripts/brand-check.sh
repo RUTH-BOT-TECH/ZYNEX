@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Verifies no traces of the upstream bot remain in our copy.
-# LICENSE and bun.lock are excluded by design (attribution must stay).
+# Nothing is exempt now: bun.lock was deleted (every deploy target uses npm) and it
+# was the last file carrying the old package name. LICENSE included in the sweep.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 PATTERN='yobby|meg ?queen|megqueen|megh|xtechkin|boboh|254795314221'
@@ -9,7 +10,7 @@ PATTERN='yobby|meg ?queen|megqueen|megh|xtechkin|boboh|254795314221'
 # here and re-checked below with the payloads stripped.
 HITS=$(grep -rniI -E "$PATTERN" \
   --exclude-dir=node_modules --exclude-dir=auth_state --exclude-dir=samples --exclude-dir=.git \
-  --exclude=LICENSE --exclude=bun.lock --exclude=package-lock.json --exclude=brand-check.sh --exclude=README-ZYNEX.md . 2>/dev/null)
+  --exclude=package-lock.json --exclude=brand-check.sh --exclude=README-ZYNEX.md . 2>/dev/null)
 # Re-scan samples/ with base64 payloads removed, so we still catch a real
 # string sneaking into the surrounding markup.
 SAMPLE_HITS=$(for f in $(find samples -type f -name '*.html' 2>/dev/null); do
