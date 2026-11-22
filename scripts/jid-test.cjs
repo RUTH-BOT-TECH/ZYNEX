@@ -120,6 +120,38 @@ t('stripDevice tolerates junk', () => {
   assert.strictEqual(jid.stripDevice('nodomain'), 'nodomain');
 });
 
+console.log('\n══ own identity from creds (sock.user has no lid) ══\n');
+
+t('registerOwnIdentity makes the own-LID rewrite work without sock.user.lid', () => {
+  // Production: sock.user = { id: '2348021016309:12@s.whatsapp.net' }, no lid.
+  // creds.me.lid = '48190237720785:11@lid'. The rewrite MUST still fire.
+  jid.registerOwnIdentity({
+    phoneNumber: '2348021016309',
+    lid: '48190237720785:11@lid',
+    id: '2348021016309:12@s.whatsapp.net',
+  });
+  const bareSock = { user: { id: '2348021016309:12@s.whatsapp.net' } };
+  assert.strictEqual(
+    jid.resolveSendJid('48190237720785@lid', bareSock),
+    '2348021016309@s.whatsapp.net',
+    'own LID must resolve even when the socket exposes no lid',
+  );
+});
+
+t('a stranger LID is still NOT rewritten without a learned PN', () => {
+  const bareSock = { user: { id: '2348021016309:12@s.whatsapp.net' } };
+  assert.strictEqual(
+    jid.resolveSendJid('233921535021084@lid', bareSock),
+    '233921535021084@lid',
+    'must not invent a PN for someone we have never seen',
+  );
+});
+
+t('registerOwnIdentity tolerates missing fields', () => {
+  jid.registerOwnIdentity({});
+  jid.registerOwnIdentity({ phoneNumber: '2340000000000' });
+});
+
 console.log('\n══ learning from inbound keys ══\n');
 
 t('participantPn teaches a group participant LID', () => {
