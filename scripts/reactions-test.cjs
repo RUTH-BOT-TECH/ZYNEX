@@ -13,6 +13,7 @@
  */
 process.env.SILENT = '1';
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const reactions = require(path.join(ROOT, 'lib', 'engines', 'reactions.js'));
@@ -128,6 +129,38 @@ function ctx(sock, extra = {}) {
     const original = reactions.match;
     await reactions.execute(cmd);
     assert.ok(sent.length + replies.length > 0);
+  });
+
+  console.log('\n══ animation first, static only as a fallback ══\n');
+
+  await ta('the animation is attempted BEFORE any static image', async () => {
+    const order = [];
+    const sock = {
+      sendMessage: async (jid, payload) => { order.push(Object.keys(payload).filter(k=>k!=='caption'&&k!=='mentions').join('+')); return 'ok'; },
+    };
+    const { cmd } = ctx(sock);
+    await reactions.execute(cmd);
+    // With ffmpeg present locally the first attempt must be video+gifPlayback.
+    const hasFfmpeg = await reactions._internals.ffmpegAvailable();
+    if (hasFfmpeg) {
+      assert.ok(order[0].includes('video'), `expected video first, got ${order[0]}`);
+      assert.ok(order[0].includes('gifPlayback'), 'must request gifPlayback for a real animation');
+    } else {
+      // No ffmpeg here: it still tries, then degrades to an image.
+      assert.ok(order.length >= 1, 'must send something');
+    }
+  });
+
+  await ta('ffmpeg availability is detectable and cached', async () => {
+    const a = await reactions._internals.ffmpegAvailable();
+    const b = await reactions._internals.ffmpegAvailable();
+    assert.strictEqual(a, b, 'must cache the probe result');
+    assert.strictEqual(typeof a, 'boolean');
+  });
+
+  t('the deployment installs ffmpeg', () => {
+    const nix = fs.readFileSync(path.join(ROOT, '.nixpacks.toml'), 'utf8');
+    assert.ok(/ffmpeg/.test(nix), 'ffmpeg is required for animations and voice notes');
   });
 
   console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);

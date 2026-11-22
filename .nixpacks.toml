@@ -1,7 +1,15 @@
 # Nixpacks defaults to whatever Node it finds; Baileys refuses to install below 20
 # (it runs a hard version check in engine-requirements.js), so pin it explicitly.
+#
+# ffmpeg is REQUIRED, not optional:
+#   • animated GIFs are sent as video+gifPlayback, which Baileys transcodes and
+#     thumbnails with ffmpeg — without it the send throws and the reaction falls
+#     back to a STATIC image
+#   • WhatsApp voice notes (ptt) must be OGG/Opus; MP3 marked as a voice note is
+#     corrupt and will not play
+#   • video thumbnails for .vv and every other media path also go through it
 [phases.setup]
-nixPkgs = ["nodejs_22", "openssl"]
+nixPkgs = ["nodejs_22", "openssl", "ffmpeg"]
 
 [phases.install]
 cmds = ["npm install --legacy-peer-deps"]
