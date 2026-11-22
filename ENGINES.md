@@ -308,3 +308,36 @@ never a fake.
   has no audio track, which is a normal thing to receive.
 - `convert` was colliding with the currency engine's `.convert 100 USD NGN`;
   the media converter yields and exposes `.convertmedia` instead.
+
+## Command output: text vs image
+
+Only commands where a **picture is the actual deliverable** send media. Everything
+else is plain text — deliberate, so the bot doesn't turn into an image spammer.
+
+| command | output | why |
+|---|---|---|
+| `.balance` `.daily` `.profile` `.rank` | **text** | numbers with emoji and bold — no picture needed |
+| `.upside` `.bold` `.fancy` | **text** | the transformed characters *are* the answer |
+| `.password` `.uuid` `.hash` | **text** | you need to copy the string |
+| `.weather` `.country` `.crypto` | **text** | data |
+| `.groupinfo` `.admins` `.members` | **text** | data |
+| `.asahotak` `.caklontong` `.family100` | **text** | question and answer |
+| `.tictactoe` `.connect4` `.2048` `.minesweeper` `.sudoku` `.maze` `.wordle` `.hangman` `.chess` | **image** | you cannot play these in text |
+| `.qc` `.ttp` `.attp` `.stiker` `.swm` | **image** | the image is the product |
+| `.ssweb` `.toimage` `.emojimix` | **image** | capturing/rendering is the request |
+
+Measured across the whole engine set: **games and converter send media; economy,
+tools, text, group, islamic, info and reactions reply with text.**
+
+## No-dead-commands guard (`scripts/no-dead-commands.cjs`)
+
+Walks every implemented name, calls the engine, and fails the build if any
+command answers with generic filler ("Working on it", "isn't available yet") or
+throws. This is what caught 9 unfinished economy commands
+(`craft smelt equip unequip use repair trade upgrade forge`) which are now a
+working crafting system:
+
+- `.mine` drops raw `iron` / `gold` / `diamond`
+- `.smelt <ore>` converts raw ore → craft ore (iron 1, gold 2, diamond 5)
+- `.craft <item>` / `.forge` spends ore + coins to make equipment
+- `.equip` `.unequip` `.use` `.upgrade` (5 levels) `.repair` `.trade @user`
