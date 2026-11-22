@@ -1,7 +1,7 @@
 {
   "name": "zynex-md",
   "version": "1.0.0",
-  "description": "ZYNEX-MD — WhatsApp bot with 57+ commands, AI auto-reply, anti-commands, group tools.",
+  "description": "ZYNEX-MD \u2014 WhatsApp bot with 57+ commands, AI auto-reply, anti-commands, group tools.",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -31,7 +31,7 @@
     "test:art": "node scripts/art-util-test.cjs"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.6.0",

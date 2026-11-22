@@ -1,5 +1,7 @@
+# Nixpacks defaults to whatever Node it finds; Baileys refuses to install below 20
+# (it runs a hard version check in engine-requirements.js), so pin it explicitly.
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_22", "openssl"]
 
 [phases.install]
 cmds = ["npm install --legacy-peer-deps"]
