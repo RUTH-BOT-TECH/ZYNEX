@@ -101,6 +101,17 @@ t('orphan folders for unknown numbers are cleared', () => {
   assert.ok(fs.existsSync(path.join(root, 'lost+found')));
 });
 
+console.log('\n══ the sweep must never delete a live pairing ══\n');
+
+t('no sweep when there is no DB to compare against', () => {
+  // A fresh deploy has no sessions.json yet. Every auth folder then looks
+  // unclaimed, and the sweep deleted real registered creds — a live pairing
+  // disappeared across a redeploy because of exactly this.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'sessionManager.js'), 'utf8');
+  assert.ok(/no session DB present/.test(src), 'must refuse to sweep without a DB');
+  assert.ok(/!fs\.existsSync\(dbFile\)/.test(src), 'the guard must check the DB file');
+});
+
 console.log('\n══ boot wiring ══\n');
 
 t('the session DB resolves onto the volume at require time', () => {
