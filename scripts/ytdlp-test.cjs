@@ -54,6 +54,36 @@ t('youtube-dl-exec is a declared dependency', () => {
   assert.ok(pkg.dependencies['youtube-dl-exec'], 'the binary would vanish on deploy');
 });
 
+t('the binary is PROBED, not just found', () => {
+  // The youtube-dl-exec launcher starts with #!/usr/bin/env python3 and looks
+  // perfectly installed while being unable to run:
+  //   env: 'python3': No such file or directory
+  // Presence checks passed; only executing it caught that.
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'ytdlp.js'), 'utf8');
+  assert.ok(/function probe\(/.test(src), 'no probe — a non-runnable binary would be accepted');
+  assert.ok(/--version/.test(src), 'the probe must actually execute the binary');
+  assert.ok(/vendor/.test(src), 'the standalone build should be preferred over the python launcher');
+});
+
+t('a postinstall step fetches the standalone binary', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.ok(pkg.scripts.postinstall, 'no postinstall — the 41 MB binary is gitignored and would be missing');
+  assert.ok(/fetch-ytdlp/.test(pkg.scripts.postinstall), 'postinstall does not fetch yt-dlp');
+});
+
+t('the fetch script cannot break a deploy', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'fetch-ytdlp.cjs'), 'utf8');
+  // Failure must be logged and survived: a build that dies here leaves the bot
+  // undeployable over a missing download.
+  assert.ok(/catch/.test(src), 'no error handling — a network blip would fail the build');
+  assert.ok(/non-fatal/i.test(src) || /fall back/.test(src), 'the script must state its fallback');
+});
+
+t('the 41 MB binary is not committed to git', () => {
+  const ignore = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8');
+  assert.ok(/^vendor\/?$/m.test(ignore), 'vendor/ would be added to the repo on every commit');
+});
+
 t('ffmpeg is offered to yt-dlp so --extract-audio can work', () => {
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'ytdlp.js'), 'utf8');
   assert.ok(/--ffmpeg-location/.test(src), 'without this yt-dlp fails with "ffprobe not found"');

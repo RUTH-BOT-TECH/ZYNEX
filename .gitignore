@@ -8,3 +8,7 @@ prisma/*.db
 .DS_Store
 data/
 sessions.json
+
+# The standalone yt-dlp binary is fetched by scripts/fetch-ytdlp.cjs at install
+# time. It is 41 MB and platform-specific, so it is never committed.
+vendor/

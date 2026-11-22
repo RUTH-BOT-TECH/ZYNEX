@@ -42,7 +42,8 @@
     "test:store": "node scripts/store-test.cjs",
     "test:vvdetect": "node scripts/viewonce-detect-test.cjs",
     "test:convert": "node scripts/convert-test.cjs",
-    "test:ytdlp": "node scripts/ytdlp-test.cjs"
+    "test:ytdlp": "node scripts/ytdlp-test.cjs",
+    "postinstall": "node scripts/fetch-ytdlp.cjs"
   },
   "engines": {
     "node": ">=20.0.0"
