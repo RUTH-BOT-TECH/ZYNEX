@@ -90,12 +90,48 @@ module.exports = {
 
 Drop the file in — the registry picks it up on boot. No wiring.
 
+## The handler contract (`scripts/harness-test.cjs`)
+
+`npm run test:all` starts here, not with the features.
+
+`lib/handler.js` builds the context object every command and engine receives. It
+was missing five keys that the engines actually read:
+
+| missing | who read it | what broke |
+|---|---|---|
+| `download` | `audio.js`, `converter.js` | **every media command** — `.stiker`, `.toimage`, `.toaudio`, `.togif`, PDF conversion, all image filters — replied `ctx.download is not a function` |
+| `argString` | `group.js`, `info.js`, `islamic.js` | fell back to `args.join(' ')`, silently losing anything the splitter ate |
+| `m` | `economy.js`, `fun.js`, `reactions.js` | mention targets came back `undefined` |
+| `mentionedJid` + `participant` | `group.js` `pickTarget()` | `.kick .promote .demote` could not resolve who you replied to |
+| `isOwner` | `group.js` | **owner-only admin gates always failed** |
+
+All five test suites were green through that, because each one built its own
+context with `download: async () => BUFFER` injected. Every test passed and every
+media command was dead in production.
+
+So `harness-test.cjs` tests the harness rather than the features:
+
+1. It parses the object literal `handler.js` passes to `command.execute` (by brace
+   depth, so nested function bodies don't truncate it) and lists the keys.
+2. It scans every engine for `ctx.<name>` and for destructured context params.
+3. It asserts every name an engine reads is in that contract (or is injected by
+   `registry.js` — only `command` and `category` are).
+4. It asserts `download` is a real implementation calling
+   `downloadMediaMessage`, not a stub.
+
+Verified by removing the fix again: the suite drops to 9/13 and names `download`
+specifically. Restored, it is 16/16.
+
+**Rule that follows from this:** a test must exercise the production contract. If
+a suite has to fake part of the context, that part belongs in this suite first.
+
 ## Testing
 
 `npm run test:all` runs the whole chain; any failure stops it.
 
 | Script | Covers | Assertions |
 |---|---|---|
+| `test:harness` | **the context contract production uses** | 16 |
 | `npm test` (`smoke-test`) | loads every command file | 53 |
 | `test:engines` | engine dispatch | 50 |
 | `test:games` | game state machines | 17 |
