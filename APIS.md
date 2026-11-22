@@ -62,6 +62,14 @@ why every entry here has its payload shape noted.
 | `world.openfoodfacts.net/api/v2/search` | `.calories .nutrition` | `products[]` + nutriments |
 | `search.openfoodfacts.org/search` | `.calories .nutrition` fallback | `hits[]` |
 | `en.wikipedia.org/w/api.php` | `.wikihow` | search + `prop=extracts` intros (needs UA) |
+| `transparencyreport.google.com/.../safebrowsing/status` | `.scan` | danger flag: status 3 = bad, 4 = clean |
+| `api.pwnedpasswords.com/range/<5 hex>` | `.pwned` | `SUFFIX:count` lines, k-anonymity |
+| `rdap.verisign.com/<tld>/v1/domain/<d>` | `.scan` | registration date, registrar, status |
+| `api.ssllabs.com/api/v3/analyze` | `.audit` | TLS grade (cached scan) |
+| `api.hackertarget.com/httpheaders` · `hostsearch` | `.audit` · `.spamcheck` | headers, subdomains |
+| `dns.google/resolve` | `.blocklist_check` `.honeypot` | SPF/DMARC/DKIM/MX/NS — JSON DoH |
+| `otx.alienvault.com/api/v1/indicators/...` | `.reputation` | threat pulse count |
+| `api.macvendors.com/<mac>` | (available) | MAC vendor |
 | `api.datamuse.com/words?rel_rhy=` | `.rhyme` | rhyming words |
 
 ## Rendering locally instead of calling out
@@ -102,6 +110,14 @@ why every entry here has its payload shape noted.
 | `waifu.pics` | unreachable | nekos.life |
 | `nekos.best` | 403 | nekos.life |
 | `hadithapi.com` | 401 (key required) | — |
+| `haveibeenpwned.com/api/v3/breachedaccount` | **401** without a paid key | pwnedpasswords (keyless) |
+| `virustotal.com/api/v3` | 405/401 without a key | — |
+| `urlhaus-api.abuse.ch` | 401 · feed is 410 Gone | Google Safe Browsing |
+| `openphish.com/feed.txt` | 302 redirect loop | — |
+| `check.spamhaus.org` | Cloudflare challenge | — |
+| `api.abuseipdb.com` | 401 (key required) | AlienVault OTX |
+| `rdap.org` | 302 to the registry; use the registry directly | rdap.verisign.com |
+| `rdap.identitydigital.services` | 404 for `.org` lookups | — |
 | `api.jikan.moe` (retry) | still times out — **do not retry** | AniList GraphQL |
 | `wikihow.com/api.php` | 500 | Wikipedia search |
 | `itunes.apple.com?media=movie` | 200 but `resultCount: 0` for every term | — (no keyless film DB) |

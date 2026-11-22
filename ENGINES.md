@@ -19,11 +19,11 @@ The way real MD bots actually work: **one engine, many names.**
 |---|---|
 | Names in catalogue | **2,113** |
 | Hand-written command files | **179** |
-| Engine-backed commands | **962** |
-| **Total real implementations** | **1,141** (54.0%) |
-| Honest "not wired up" stubs | 972 |
+| Engine-backed commands | **994** |
+| **Total real implementations** | **1,173** (55.5%) |
+| Honest "not wired up" stubs | 940 |
 
-Before this work the bot had **58** commands. Now **1,141** actually do something,
+Before this work the bot had **58** commands. Now **1,173** actually do something,
 and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 
 ## The engines
@@ -42,6 +42,7 @@ and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 | `audio` | 46 | TTS, voice effects, audio splicing |
 | `search` | 46 | music, anime, TV, sport scores, news, food, how-to, rhymes |
 | `ai` | 56 | chat, codegen, rewriting + image generation on the one free model |
+| `security` | 32 | link scanning, leak checks, real TOTP, headers/TLS audit |
 | `reactions` | 41 | anime GIFs — `.hug .kiss .slap` +38 |
 | `islamic` | 32 | Quran, prayer times, qibla, hijri, duas |
 | `media` | 23 | cats, dogs, foxes, neko, waifu |
@@ -105,6 +106,7 @@ Drop the file in — the registry picks it up on boot. No wiring.
 | `test:search` | **live** probes of all 46 search routes | 64 |
 | `test:logos` | every logo returns a decodable PNG | 86 |
 | `test:ai` | refusals, throttle contract, one live text + image | 39 |
+| `test:security` | RFC 6238 vectors, live verdicts, refusals | 31 |
 | `test:nodead` | no command is a placeholder | all 1,080 |
 | `audit` | one owner per name | 2,108 names |
 
@@ -409,6 +411,66 @@ aliases `.dalle .midjourney .flux .stablediffusion`, all of which state they are
 
 Style presets are prompt suffixes, not separate models:
 `ghibli` → *studio ghibli style, soft watercolour background, gentle warm light*.
+
+## Security engine detail (`lib/engines/security.js`, 32 names)
+
+Every signal here is real. Where a real signal does not exist, the command says so.
+
+| Command | Real source | What it actually does |
+|---|---|---|
+| `.scan .safelink .checklink .urlscan .phishing .scamcheck .fraud` | Google Safe Browsing status + Verisign RDAP + local lookalike analysis | scores a link 0–100, names each signal |
+| `.audit <domain>` | HackerTarget headers + SSL Labs grade + Google DoH (SPF/DMARC) | header checklist, TLS grade, email auth |
+| `.pwned .breach .leakcheck <password>` | `api.pwnedpasswords.com/range/` | real leak count via k-anonymity |
+| `.otp .totp` | local RFC 6238 | 6-digit codes, ±30s window, `generate` for a fresh secret |
+| `.verify <secret> <code>` | local RFC 6238 | validates a code someone reads to you |
+| `.hashcheck` | local crypto | MD5/SHA-1/256/512/SHA3-256, or identifies a hash by length |
+| `.blocklist_check` | Google DoH | SPF, DMARC policy, DKIM selector presence |
+| `.honeypot` | Google DoH | A, MX, NS, TXT records |
+| `.spamcheck` | HackerTarget hostsearch | subdomain inventory |
+| `.reputation` | AlienVault OTX | threat pulse count + tags |
+| `.captcha` | local | arithmetic challenge, 2-minute expiry |
+| `.ipban` | local store | per-chat ignore list |
+| `.twofa on/off` | local store | the bot's own requirement flag |
+| `.activity_log .audit_log .logs_view` | local store | admin action history |
+
+### The reading of the Safe Browsing payload
+
+`transparencyreport.google.com/.../safebrowsing/status` answers with `)]}'` followed
+by JSON. The row is `["sb.ssr", status, malware, social, unwanted, ?, ts, site, ?]`
+where **status 3 = dangerous, 4 = clean**. Verified both directions:
+
+- `testsafebrowsing.appspot.com` → `[3, true, true, true]` → reported 🔴 HIGH
+- `google.com` → `[4, false…]` → reported 🟢 CLEAN
+
+A status of `1` means *unindexed*, which is normal for new domains and is reported
+as `⚪ not indexed` rather than pretending to be a clean bill of health.
+
+### Scoring is transparent, not a vibe
+
+`.scan` adds fixed weights: Safe Browsing dangerous **+80**, lookalike brand
+**+25**, new domain (<30 days) **+25**, free/abuse TLD **+15**, no registration
+record **+20**, three or more hyphens **+10**. Every point comes with the line
+that caused it, and every scan ends with *"not a guarantee — a clean score means
+no known signal, not safe."*
+
+### Refusals
+
+| Command | Why | Points to |
+|---|---|---|
+| `.breach <email>` / `.pwned <email>` | HIBP account API answers **401** without a paid key | `.pwned <password>` (keyless half, real) |
+| `.filescan` / `.virus` | VirusTotal needs a key | `.scan <link>`, `.hashcheck` |
+| `.kycstatus` / identity verification | needs a licensed provider | `.verify <secret> <code>` |
+| `.scan` on a private IP | no remote service can see `192.168.x.x` | says so instead of inventing a verdict |
+
+### Correctness
+
+TOTP is checked against all four **RFC 6238 published test vectors** in the suite
+(`T=59 → 287082`, `T=1111111109 → 081804`, `T=1234567890 → 005924`,
+`T=2000000000 → 279037`). If those pass, the codes match every authenticator app.
+
+Lookalike detection compares the *raw* hostname to the brand before de-leeting it —
+the first version de-leeted `paypa1` → `paypal` and then skipped it as "the genuine
+domain", which is the exact case the check exists to catch.
 
 ## Search engine detail (`lib/engines/search.js`, 46 names)
 
