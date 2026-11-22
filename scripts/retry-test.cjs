@@ -122,8 +122,8 @@ t('.vv explains that an unrecoverable view-once is not a transient failure', () 
   // front; the requirement is unchanged — the reply must not suggest "try
   // again later" for something that cannot come back.
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'commands', 'vv.js'), 'utf8');
-  assert.ok(/never received that view-once/i.test(src), 'must name the real situation');
-  assert.ok(/nothing to unlock/i.test(src), 'must not imply a transient failure');
+  assert.ok(/quote arrived stripped|never received that view-once/i.test(src), 'must name the real situation');
+  assert.ok(/nothing can recover it|nothing to unlock/i.test(src), 'must not imply a transient failure');
   assert.ok(/Nothing can recover it/i.test(src), 'must be honest about permanence');
 });
 

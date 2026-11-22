@@ -100,6 +100,17 @@ t('a placeholder stub is not mistaken for media', () => {
   assert.ok(node && !node.mediaKey && !node.url, 'stub should be detectable as un-cacheable');
 });
 
+t('.vv explains the route that DOES work, not just that it failed', () => {
+  // Researched answer (juniorkrz/stickerbot #88): a view-once never reaches a
+  // companion device, but a reply sent from the phone that received it carries
+  // the full media node in contextInfo.quotedMessage. Telling the user that is
+  // more useful than any error message.
+  const src = fs.readFileSync(path.join(ROOT, 'lib/commands/vv.js'), 'utf8');
+  assert.ok(/Reply to it from your phone/i.test(src), 'the working method is not explained');
+  assert.ok(/Do not open it/i.test(src), 'the "do not open it first" condition is missing');
+  assert.ok(/quote is the only route/i.test(src), 'must say where the media comes from');
+});
+
 t('capture refuses a stub instead of storing junk', () => {
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
   assert.ok(/cacheable/.test(src), 'no cacheability check before download');
