@@ -92,5 +92,71 @@ t('stopSession degrades gracefully when nothing is running', () => {
   assert.doesNotThrow(() => sm.stopSession('does-not-exist'));
 });
 
+console.log('\n══ reconnect after a crash vs a deliberate stop ══\n');
+
+const { execFileSync } = require('child_process');
+
+/**
+ * Run reconnectAllSessions in a child process with its own DB and auth dir.
+ * Paths are passed as data, not interpolated into code -- an earlier version
+ * built the child script with nested template literals and handed it a literal
+ * "${authDir}" path, so the folder never existed and the "revive" case failed
+ * for a reason that had nothing to do with the code under test.
+ */
+function reconnectScenario(name, rows) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `zynex-rc-${name}-`));
+  const authDir = path.join(dir, 'auth_state');
+  fs.mkdirSync(authDir, { recursive: true });
+  const specs = rows.map((r) => {
+    const folder = path.join(authDir, r.phoneNumber);
+    fs.mkdirSync(folder, { recursive: true });
+    if (r.creds) {
+      fs.writeFileSync(
+        path.join(folder, 'creds.json'),
+        JSON.stringify({ me: { id: `${r.phoneNumber}:8@s.whatsapp.net` }, registered: true }),
+      );
+    }
+    return { phone: r.phoneNumber, status: r.status, folder };
+  });
+
+  const script = `
+    const { prisma, ensureDB } = require('./lib/db');
+    const sm = require('./lib/sessionManager');
+    const specs = JSON.parse(process.env.SPECS);
+    (async () => {
+      await ensureDB();
+      for (const spec of specs) {
+        await prisma.botSession.create({
+          data: { phoneNumber: spec.phone, status: spec.status, authFolder: spec.folder, mode: 'public', prefix: '.' },
+        });
+      }
+      await sm.reconnectAllSessions();
+      process.exit(0);
+    })();
+  `;
+  const out = execFileSync('node', ['-e', script], {
+    encoding: 'utf8',
+    cwd: ROOT,
+    env: { ...process.env, AUTH_DIR_ROOT: authDir, DB_FILE: '', SPECS: JSON.stringify(specs) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return out.split('\n').find((l) => /Reconnecting \d+ of/.test(l)) || '';
+}
+
+t('a crash (creds still on disk) revives the session', () => {
+  const line = reconnectScenario('crash', [{ phoneNumber: '2348021016309', status: 'disconnected', creds: true }]);
+  assert.ok(/Reconnecting 1 of 1/.test(line), `expected a revive, got: ${line}`);
+});
+
+t('a deliberate logout (no creds) is NOT revived', () => {
+  const line = reconnectScenario('logout', [{ phoneNumber: '2348021016309', status: 'disconnected', creds: false }]);
+  assert.ok(/Reconnecting 0 of 1/.test(line), `revived a logged-out account: ${line}`);
+});
+
+t('.shutdown marks "stopped" and is NOT revived on boot', () => {
+  const line = reconnectScenario('stopped', [{ phoneNumber: '2349165331115', status: 'stopped', creds: true }]);
+  assert.ok(/Reconnecting 0 of 1/.test(line), `revived a session the user stopped: ${line}`);
+});
+
 console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);
 process.exit(fail === 0 ? 0 : 1);
