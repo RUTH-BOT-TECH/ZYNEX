@@ -95,3 +95,33 @@ railway up --detach --yes      # deploy the current working tree
 
 **The volume is the whole point.** `auth_state/` holds WhatsApp credentials. If
 `railway volume list` ever shows the mount gone, the next redeploy forces a re-pair.
+
+### Volume / multi-account incident (2026-11-22, commits 75a16e6 → 0385a23)
+
+Two accounts had been linked to one bot, and neither could be disconnected
+from the site. Four separate defects were involved:
+
+| Defect | Effect | Fix |
+|---|---|---|
+| `rmSync(authFolder)` on the volume mount | `EBUSY`, swallowed by `catch {}` — stale Signal keys survived and were written over | `wipeAuthFolder()` empties contents, never the folder |
+| DB at `/app/sessions.json`, off-volume | every redeploy forgot every account | `DB_FILE` pinned to `<volume>/.sessions.json` at boot |
+| no orphan cleanup | `2348021016309` and `2349165331115` both stayed registered on the volume | `sweepOrphanAuthFolders()` at boot |
+| `dc()` posted `password: pw` where `pw` was undefined | JSON dropped the key → 401 → empty `catch{}` announced success anyway | sends `sitePw()` header, reports the real result |
+
+The site now has a **Linked Accounts** card listing every paired number with
+its own Disconnect button, driven by `/api/status`.
+
+Current state of the volume after the sweep:
+
+```
+/app/auth_state/
+├── 2348021016309/   empty (0 files)
+├── 2349165331115/   empty (0 files)
+└── lost+found/
+```
+
+Both folders are empty but deliberately kept — they are addressable mount
+children, and deleting them is what caused `EBUSY` in the first place.
+
+`OWNER_NUMBER` was still the placeholder `2348012345678`; it is now
+`2348021016309`.
