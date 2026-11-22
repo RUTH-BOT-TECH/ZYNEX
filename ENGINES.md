@@ -17,25 +17,30 @@ The way real MD bots actually work: **one engine, many names.**
 
 | | count |
 |---|---|
-| Names in catalogue | **2,067** |
+| Names in catalogue | **2,108** |
 | Hand-written command files | **179** |
-| Engine-backed commands | **683** |
-| **Total real implementations** | **862** (46.6%) |
-| Honest "not wired up" stubs | 1,205 |
+| Engine-backed commands | **901** |
+| **Total real implementations** | **1,080** (51.2%) |
+| Honest "not wired up" stubs | 1,028 |
 
-Before this work the bot had **58** commands. Now **862** actually do something.
+Before this work the bot had **58** commands. Now **1,080** actually do something,
+and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 
 ## The engines
 
 | Engine | Names | What it does |
 |---|---|---|
-| `group` | 82 | members, admins, polls, warnings, join requests, group settings, rules |
-| `tools` | 127 | calc, encode/hash, network, QR, TTS, time, search, translate |
-| `text` | 104 | Unicode styles, case, morse/binary/hex, logo images |
+| `tools` | 126 | calc, encode/hash, network, QR, TTS, time, search, translate |
+| `text` | 103 | Unicode styles, case, morse/binary/hex, logo images |
 | `economy` | 90 | wallet, daily, work/mine/fish/hunt, bank, shop, pets, marriage, gamble |
+| `group` | 82 | members, admins, polls, warnings, join requests, group settings, rules |
+| `games` | 72 | chess, tic-tac-toe, connect4, wordle, hangman, 2048, sudoku, minesweeper, quiz |
 | `downloader` | 72 | play/song (Deezer), YouTube search, honest answers elsewhere |
 | `fun` | 57 | jokes, quotes, facts, truth/dare, 8ball, roast, rate, ship |
+| `converter` | 56 | sharp/ffmpeg/ImageMagick image, audio, video, PDF |
 | `info` | 55 | country, books, Bible, crypto, trivia, dictionary, poetry |
+| `audio` | 46 | TTS, voice effects, audio splicing |
+| `search` | 46 | music, anime, TV, sport scores, news, food, how-to, rhymes |
 | `reactions` | 41 | anime GIFs — `.hug .kiss .slap` +38 |
 | `islamic` | 32 | Quran, prayer times, qibla, hijri, duas |
 | `media` | 23 | cats, dogs, foxes, neko, waifu |
@@ -84,11 +89,25 @@ Drop the file in — the registry picks it up on boot. No wiring.
 
 ## Testing
 
-```bash
-npm test           # 53 command files
-npm run test:engines   # 50 engine assertions
-npm run coverage       # JSON coverage stats
-```
+`npm run test:all` runs the whole chain; any failure stops it.
+
+| Script | Covers | Assertions |
+|---|---|---|
+| `npm test` (`smoke-test`) | loads every command file | 53 |
+| `test:engines` | engine dispatch | 50 |
+| `test:games` | game state machines | 17 |
+| `test:chess` | chess rules + rendering | 18 |
+| `test:boards` | board image contract | 30 |
+| `test:converter` | converter dispatch + refusals | 40 |
+| `test:converter-render` | real files in, real files out | 14 |
+| `test:freetext` | free-text routing | 4 |
+| `test:search` | **live** probes of all 46 search routes | 64 |
+| `test:nodead` | no command is a placeholder | all 1,080 |
+| `audit` | one owner per name | 2,108 names |
+
+`test:search` and the live half of `converter-render` need network. Everything
+else is offline, so a red suite with network errors means "the internet moved",
+not "the bot broke".
 
 ## Group engine detail
 
@@ -267,6 +286,54 @@ missing native binary degrades instead of breaking the command.
 their highlight while everything still "worked". Both now return
 `{ winner, line }`, and `scripts/board-test.cjs` asserts the win image is **not
 byte-identical** to the pre-win board.
+
+## Search engine detail (`lib/engines/search.js`, 46 names)
+
+Everything here is keyless. Each route was probed live before it was wired, and
+`scripts/search-test.cjs` re-probes all 46 on every `npm run test:all` — so a
+route that dies in future fails the build instead of going quiet.
+
+| Commands | Source | Endpoint |
+|---|---|---|
+| `.track .tracks .musicsearch .songsearch` | Deezer | `api.deezer.com/search?q=` |
+| `.album .artist .playlist .genre` | Deezer | `/search/album`, `/search/artist`, `/search/playlist`, `/chart/0/tracks`, `/genre` |
+| `.anilist .animesearch .mal .animeinfo .character` | AniList | `graphql.anilist.co` — **POST only**, GET 404s |
+| `.manga .mangainfo` | AniList | same, `type: MANGA` |
+| `.series .tv .movie .movies .imdb` | TVmaze | `api.tvmaze.com/search/shows?q=` |
+| `.bbc .cnn .yahoo .news` | RSS | BBC / CNN / Yahoo feeds, `<item>` parsed |
+| `.nba .nfl .epl .laliga .ucl .soccer .football .tennis .f1 .cricket .sports .score .fixtures` | ESPN | `site.api.espn.com/.../scoreboard` |
+| `.standings` | ESPN | `site.api.espn.com/apis/v2/.../standings` |
+| `.cocktail .drink` | TheCocktailDB | `random.php` / `search.php` |
+| `.food .recipe` | TheMealDB | `random.php` / `search.php` |
+| `.calories .nutrition` | Open Food Facts | v2 search, 3-route fallback |
+| `.wikihow` | Wikipedia | `api.php?action=query&list=search` + `prop=extracts` |
+| `.rhyme` | Datamuse | `words?rel_rhy=` |
+
+Decisions worth keeping:
+
+- **`.song` / `.music` / `.anime` belong to `downloader` and `media`.** Those
+  engines already answer them by sending real audio/images, so `search` yields
+  the names rather than fighting for them. One owner per name, always.
+- **ESPN returns 403 to bot user-agents** and 200 to a browser UA. `search.js`
+  sends a browser UA on ESPN calls only.
+- **`.football` = soccer**, not NFL. This bot answers in Nigerian English; `.nfl`
+  is still there for American football.
+- **Unnamed fixtures are not reported.** The cricket feed can return one
+  `TBA vs TBA` placeholder event; the engine filters those out and says the next
+  round has not been named rather than printing `TBA ** — ** TBA`.
+- **Sport scores only print when both sides have one.** A fixture that has not
+  kicked off renders `Bills vs Dolphins` + kickoff time, not `0 — 0`.
+- **Film-only lookup has no keyless source.** OMDb needs a key, iTunes returns
+  `resultCount: 0` for movies, yts is dead. `.movie` searches TVmaze and, when
+  that misses, says plainly that there is no keyless film database rather than
+  dressing up a TV result as a film.
+- **`.wikihow` is a Wikipedia lookup and says so.** WikiHow's API is 500 keyless,
+  and Wikipedia is an encyclopaedia — `how to change a tyre` returns *Formula One
+  tyres*. Rather than mislabel bare links as instructions, the command fetches the
+  intro paragraphs and headers itself `WIKIPEDIA — <query>`.
+- **Open Food Facts rate-limits `world.openfoodfacts.org` hard** (frequent 503).
+  The engine tries `world.openfoodfacts.net`, then `search.openfoodfacts.org`,
+  then the legacy `.org` route.
 
 ## Converter engine detail (`lib/engines/converter.js`, 54 names)
 

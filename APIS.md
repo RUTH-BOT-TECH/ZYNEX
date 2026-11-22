@@ -47,6 +47,28 @@ why every entry here has its payload shape noted.
 | `api.qrserver.com/v1/create-qr-code` | `.qr` | PNG |
 | `api.deezer.com/search` | `.play .song` | 30s official preview + artwork |
 | `itunes.apple.com/search` | `.play` fallback | 30s preview |
+| `api.deezer.com/search` | `.track .album .artist .playlist .genre` | tracks, albums, artists, playlists |
+| `graphql.anilist.co` (**POST**) | `.anilist .manga .animeinfo .mangainfo .character` | anime + manga metadata |
+| `api.tvmaze.com/search/shows` | `.series .tv .movie .movies .imdb` | `[{show:{…}}]` |
+| `feeds.bbci.co.uk/news/rss.xml` | `.bbc .news` | RSS `<item>` list |
+| `rss.cnn.com/rss/edition.rss` | `.cnn` | RSS `<item>` list |
+| `news.yahoo.com/rss/` | `.yahoo` | RSS `<item>` list |
+| `site.api.espn.com/.../scoreboard` | `.nba .nfl .epl .laliga .ucl .soccer .football .tennis .f1 .cricket .sports .score .fixtures` | `events[]` — **needs browser UA, 403 to bots** |
+| `site.api.espn.com/apis/v2/.../standings` | `.standings` | group tree → rows |
+| `thecocktaildb.com/api/json/v1/1` | `.cocktail .drink` | drink + measures |
+| `themealdb.com/api/json/v1/1` | `.food .recipe` | meal + measures |
+| `world.openfoodfacts.net/api/v2/search` | `.calories .nutrition` | `products[]` + nutriments |
+| `search.openfoodfacts.org/search` | `.calories .nutrition` fallback | `hits[]` |
+| `en.wikipedia.org/w/api.php` | `.wikihow` | search + `prop=extracts` intros (needs UA) |
+| `api.datamuse.com/words?rel_rhy=` | `.rhyme` | rhyming words |
+
+## Rate-limited / conditional
+
+| API | Behaviour |
+|---|---|
+| `world.openfoodfacts.org/cgi/search.pl` | **503 much of the time** — the engine falls back to `.net` and `search.openfoodfacts.org` |
+| `site.api.espn.com` | **403 to any bot user-agent**, 200 to a browser UA. Send a browser UA. |
+| `api.openfoodfacts` legacy search | slow (2-4s) even when it does answer |
 
 ## Dead — removed or replaced
 
@@ -67,6 +89,11 @@ why every entry here has its payload shape noted.
 | `waifu.pics` | unreachable | nekos.life |
 | `nekos.best` | 403 | nekos.life |
 | `hadithapi.com` | 401 (key required) | — |
+| `api.jikan.moe` (retry) | still times out — **do not retry** | AniList GraphQL |
+| `wikihow.com/api.php` | 500 | Wikipedia search |
+| `itunes.apple.com?media=movie` | 200 but `resultCount: 0` for every term | — (no keyless film DB) |
+| `yts.mx` | unreachable | — |
+| `kitsu.io` with raw `filter[text]` | empty body; needs `filter%5Btext%5D` | — |
 
 ## Why no keyed APIs
 
