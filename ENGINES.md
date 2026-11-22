@@ -17,13 +17,13 @@ The way real MD bots actually work: **one engine, many names.**
 
 | | count |
 |---|---|
-| Names in catalogue | **2,108** |
+| Names in catalogue | **2,111** |
 | Hand-written command files | **179** |
-| Engine-backed commands | **901** |
-| **Total real implementations** | **1,080** (51.2%) |
-| Honest "not wired up" stubs | 1,028 |
+| Engine-backed commands | **906** |
+| **Total real implementations** | **1,085** (51.4%) |
+| Honest "not wired up" stubs | 1,026 |
 
-Before this work the bot had **58** commands. Now **1,080** actually do something,
+Before this work the bot had **58** commands. Now **1,085** actually do something,
 and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 
 ## The engines
@@ -31,7 +31,7 @@ and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 | Engine | Names | What it does |
 |---|---|---|
 | `tools` | 126 | calc, encode/hash, network, QR, TTS, time, search, translate |
-| `text` | 103 | Unicode styles, case, morse/binary/hex, logo images |
+| `text` | 107 | Unicode styles, case, morse/binary/hex, **67 local logo styles** |
 | `economy` | 90 | wallet, daily, work/mine/fish/hunt, bank, shop, pets, marriage, gamble |
 | `group` | 82 | members, admins, polls, warnings, join requests, group settings, rules |
 | `games` | 72 | chess, tic-tac-toe, connect4, wordle, hangman, 2048, sudoku, minesweeper, quiz |
@@ -102,6 +102,7 @@ Drop the file in — the registry picks it up on boot. No wiring.
 | `test:converter-render` | real files in, real files out | 14 |
 | `test:freetext` | free-text routing | 4 |
 | `test:search` | **live** probes of all 46 search routes | 64 |
+| `test:logos` | every logo returns a decodable PNG | 86 |
 | `test:nodead` | no command is a placeholder | all 1,080 |
 | `audit` | one owner per name | 2,108 names |
 
@@ -286,6 +287,69 @@ missing native binary degrades instead of breaking the command.
 their highlight while everything still "worked". Both now return
 `{ winner, line }`, and `scripts/board-test.cjs` asserts the win image is **not
 byte-identical** to the pre-win board.
+
+## Text logos (`lib/logo.js` + `lib/logostyles.js`, 67 names)
+
+All 67 `textmaker` names in the catalogue render locally. No network, no key, no
+rate limit — `sharp` draws the SVG and returns a PNG buffer.
+
+| Group | Commands |
+|---|---|
+| Glow & light | `.neon .neonlight .light .fire .flame` |
+| Cold & cloud | `.ice .snow .cloud` |
+| Metal & dimension | `.chrome .metal .silver .3dtext .goldtext .shadow` |
+| Texture | `.sand .sandwriting .graffiti .grafitti` |
+| Digital | `.glitch .glitchtext .hacker .galaxy .space .thunder .thunderlogo .rainbow` |
+| Game & fandom nameplates | `.apex .avengers .batman .blackpink .clan .cod .dragonball .esports .fortnite .freefire .gaming .joker .marvel .minecraft .ml .mobilelegends .naruto .onepiece .pubg .roblox .squad .superman .team .valorant` |
+| Platform nameplates | `.youtubelogo .ytlogo .tiktoklogo .iglogo .fblogo .twitterlogo .discordlogo .pornhub` |
+| Document cards | `.bizcard .namecard .id_card .idcard .certificate .flyer .poster .banner .thumbnail` |
+
+### Why this was rebuilt
+
+The 30 "working" logo commands pointed at
+`api.flamingtext.com/logo/Design-<X>?_variations=true&text=…` and passed the URL
+straight to `sock.sendMessage({ image: { url } })`. Probing it in Nov 2026:
+
+- `api.flamingtext.com` answers **429** to this host
+- the design URLs that did answer returned **`text/html`**, HTTP 200 — a page,
+  not a picture. Baileys would have handed WhatsApp a web page as an image.
+
+`HTTP 200` is not proof of an image, and neither is "the handler didn't throw".
+The local renderer removes the failure mode entirely: either sharp returns PNG
+bytes or the command says what went wrong.
+
+### How it is built
+
+1. `textInk()` renders the word alone at full size and trims to its **exact ink
+   box** with `sharp.trim()`. That is what lets every style know how wide the
+   word really is before laying out decorations around it.
+2. `compose()` scales that ink to the canvas and reports `{x, y, width, height}`.
+3. Style recipes stack layers: `extrude()` for 3D/shadow, ghost tints for glitch,
+   generated particles for fire/snow/galaxy/sand, and `MOTIF` geometry (hexes,
+   grids, rays, diamonds, chevrons, bars) behind fandom plates.
+4. `finish()` **always composites the word itself** — the first bug in this build
+   was half the styles rendering as an empty background because the word was
+   never placed.
+
+### Decisions worth keeping
+
+- **Franchise and platform names are themed nameplates, not the real logos.** A
+  bot reproducing the Batman or YouTube wordmark is passing off someone else's
+  trademark. `.batman` draws a Gotham-palette plate, `.youtubelogo` draws a
+  play-icon lockup, and both captions say `not the official logo` on every reply.
+- **Nameplates carry a background motif**, not just a colour swap — without it
+  `.naruto` and `.valorant` were textually identical apart from hue.
+- **Document cards take fields, not a phrase**: `.bizcard Name=Ada | Role=Dev`.
+  Called bare, they explain the format instead of rendering an empty box.
+- **Plain text styles stay text.** `.bold .upside .smallcaps .clap` reply in
+  text — the user's rule that only games and picture-is-the-product commands
+  send media.
+- **Card fields are HTML-escaped** into the SVG, so `<`, `>`, `&` in a name don't
+  break the render.
+
+Proof: `samples/textmaker-proof.html` — regenerable with
+`node scripts/logo-proof.cjs`. Suite: `npm run test:logos`, 86 assertions, every
+one of them decoding the returned bytes with sharp.
 
 ## Search engine detail (`lib/engines/search.js`, 46 names)
 

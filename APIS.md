@@ -62,6 +62,12 @@ why every entry here has its payload shape noted.
 | `en.wikipedia.org/w/api.php` | `.wikihow` | search + `prop=extracts` intros (needs UA) |
 | `api.datamuse.com/words?rel_rhy=` | `.rhyme` | rhyming words |
 
+## Rendering locally instead of calling out
+
+| Feature | Why | Instead |
+|---|---|---|
+| `.neon .glitch .batman` +64 logos | `api.flamingtext.com` now **429s this host**, and its design URLs return `text/html` with HTTP 200 — the bot was sending web pages as images | `lib/logostyles.js`, SVG → `sharp`, zero requests |
+
 ## Rate-limited / conditional
 
 | API | Behaviour |

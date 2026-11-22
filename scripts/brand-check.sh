@@ -8,7 +8,7 @@ PATTERN='yobby|meg ?queen|megqueen|megh|xtechkin|boboh|254795314221'
 # base64 will eventually spell "megh" or "boboh" by chance, so those are skipped
 # here and re-checked below with the payloads stripped.
 HITS=$(grep -rniI -E "$PATTERN" \
-  --exclude-dir=node_modules --exclude-dir=auth_state --exclude-dir=samples \
+  --exclude-dir=node_modules --exclude-dir=auth_state --exclude-dir=samples --exclude-dir=.git \
   --exclude=LICENSE --exclude=bun.lock --exclude=package-lock.json --exclude=brand-check.sh --exclude=README-ZYNEX.md . 2>/dev/null)
 # Re-scan samples/ with base64 payloads removed, so we still catch a real
 # string sneaking into the surrounding markup.
