@@ -198,6 +198,14 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
       <input type="tel" id="ph" class="inp" placeholder="254712345678" inputmode="numeric" autocomplete="off">
     </div>
     <p class="ht">With country code. No + or spaces. Example: 254712345678</p>
+    <div id="pw-wrap" style="display:none;margin-top:14px">
+      <label class="lbl" for="pw">🔒 Site Password</label>
+      <div class="inp-row">
+        <span class="flag">🔒</span>
+        <input type="password" id="pw" class="inp" placeholder="Password given by the owner" autocomplete="current-password">
+      </div>
+      <p class="ht">This site requires a password before it will pair a number.</p>
+    </div>
     <div style="height:14px"></div>
     <button class="btn" id="bt" onclick="go()">🔗 Get Pairing Code</button>
   </div>
@@ -354,6 +362,8 @@ async function go(){
     er.classList.add('show');
     return;
   }
+  const pwEl=document.getElementById('pw');
+  const pw=pwEl?pwEl.value:'';
   const bt=document.getElementById('bt');
   bt.disabled=true;
   bt.innerHTML='<span class="spin"></span> Generating...';
@@ -361,11 +371,28 @@ async function go(){
     const r=await fetch('/api/pair',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({phoneNumber:ph})
+      body:JSON.stringify({phoneNumber:ph,password:pw})
     });
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Failed to generate code');
+  // Ask the server once whether this deployment needs a password, and reveal the
+  // field only then. Previously the field did not exist at all, so every browser
+  // attempt was rejected with "Wrong site password" while curl worked fine.
+  (async()=>{
+    try{
+      const st=await (await fetch('/api/status')).json();
+      if(st&&st.authRequired){
+        const w=document.getElementById('pw-wrap');
+        if(w)w.style.display='block';
+        const saved=localStorage.getItem('zynex_pw');
+        const el=document.getElementById('pw');
+        if(saved&&el)el.value=saved;
+      }
+    }catch(e){}
+  })();
+
     localStorage.setItem('zynex_ph',ph);
+    if(pw)localStorage.setItem('zynex_pw',pw);
     document.getElementById('fc').style.display='none';
     document.getElementById('cc').style.display='block';
     document.getElementById('cd').textContent=d.code;
@@ -428,7 +455,7 @@ async function dc(){
     await fetch('/api/disconnect',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({phoneNumber:ph})
+      body:JSON.stringify({phoneNumber:ph,password:pw})
     });
   }catch{}
   localStorage.removeItem('zynex_ph');

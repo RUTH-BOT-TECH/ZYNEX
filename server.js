@@ -83,6 +83,8 @@ app.get('/api/status', async (req, res) => {
     res.json({
       botName: BOT_NAME,
       version: '1.0.0',
+      // tells the page whether to show a password box — never the password itself
+      authRequired: Boolean(process.env.SITE_PASSWORD),
       activeSessions,
       totalPaired: sessions.length,
       sessions: sessions.slice(0, 20),

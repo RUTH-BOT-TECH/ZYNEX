@@ -7,3 +7,4 @@ tmp/
 prisma/*.db
 .DS_Store
 data/
+sessions.json
