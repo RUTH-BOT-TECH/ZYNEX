@@ -152,6 +152,17 @@ function viewOnceMessage(id) {
     assert.ok(s.entries <= 300, `cache grew to ${s.entries} entries`);
   });
 
+  await t('the downloader is given the UNWRAPPED content, not the wrapper', () => {
+    // Production reported "No valid media URL or directPath present in message"
+    // while the same diagnostic line said type=image — proof the unwrap had
+    // worked and the wrong object was handed to the downloader.
+    const src = fs.readFileSync(path.join(ROOT, 'lib', 'commands', 'vv.js'), 'utf8');
+    assert.ok(/message: inner \|\| quoted/.test(src),
+      'passing the raw quote makes the downloader treat viewOnceMessageV2Extension as the media node');
+    const rawPass = /message: quoted,\s*\n\s*messageTimestamp/;
+    assert.ok(!rawPass.test(src), 'the raw wrapper is still passed to the downloader somewhere');
+  });
+
   console.log('\n══ wiring ══\n');
 
   await t('.vv consults the cache before the network', () => {
