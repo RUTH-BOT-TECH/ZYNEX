@@ -6,3 +6,4 @@ auth_state/
 tmp/
 prisma/*.db
 .DS_Store
+data/
