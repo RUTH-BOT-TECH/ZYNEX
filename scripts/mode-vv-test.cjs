@@ -94,6 +94,46 @@ const kindOf = (p) => p && ['image', 'video', 'audio', 'document'].find((k) => p
   await handleMessage(fakeSock(noOwner), mkMsg('2349999999999@s.whatsapp.net'), { mode: 'private', id: 'S', prefix: '.' });
   ok('private mode with no owner number does not lock everyone out', noOwner.length > 0, 'locked out with no way back');
 
+  // ── the stripped-quote case (production: "Cannot derive from empty media key") ──
+  // A quoted view-once arrives WITHOUT mediaKey/url/directPath, so decrypting the
+  // quote alone is impossible. The original stanza was stored when it arrived, so
+  // .vv must fall back to it. Upstream: WhiskeySockets/Baileys#2907.
+  console.log('\n\u2550\u2550 .vv media keys \u2550\u2550\n');
+  const { storeMessage } = require(path.join(ROOT, 'lib', 'anti', 'antiDelete.js'));
+
+  const strippedQuote = { viewOnceMessageV2Extension: { message: { imageMessage: { caption: 'x' } } } };
+  const withKey = { imageMessage: { mediaKey: 'k', url: 'https://mmg.whatsapp.net/x', mimetype: 'image/jpeg' } };
+  const stanza = 'STANZA1';
+  storeMessage({ key: { id: stanza, remoteJid: '123@g.us' }, message: { viewOnceMessageV2Extension: { message: withKey } } });
+
+  const sentA = []; const txtA = [];
+  await vv.execute({
+    sock: { sendMessage: async (jid, p) => { sentA.push(p); } },
+    msg: { message: { extendedTextMessage: { contextInfo: { quotedMessage: strippedQuote, stanzaId: stanza } } }, pushName: 'T' },
+    from: '123@g.us',
+    reply: async (t) => txtA.push(String(t)),
+    download: async () => { throw new Error('Cannot derive from empty media key'); },
+    dbSession: { phoneNumber: '2348021016309' },
+    args: [],
+  });
+  // With the original stored, .vv must NOT report a failure at all.
+  ok('a stripped quote is recovered from the stored original', !txtA.some((t) => /Could not unlock/.test(t)),
+    'gave up instead of using the stored stanza');
+
+  const txtB = [];
+  await vv.execute({
+    sock: { sendMessage: async () => {} },
+    msg: { message: { extendedTextMessage: { contextInfo: { quotedMessage: strippedQuote, stanzaId: 'NEVER-STORED' } } }, pushName: 'T' },
+    from: '123@g.us',
+    reply: async (t) => txtB.push(String(t)),
+    download: async () => { throw new Error('Cannot derive from empty media key'); },
+    dbSession: { phoneNumber: '2348021016309' },
+    args: [],
+  });
+  ok('an unrecoverable item explains WHY instead of showing a raw library error',
+    txtB.length > 0 && /media key|WhatsApp limitation/i.test(txtB[0]), txtB[0]?.slice(0, 60) || 'silence');
+  ok('…and it does not claim the bot broke', !/bug in the bot\.$/.test(txtB[0] || 'error'));
+
   const total = pass + fails.length;
   console.log(`\n${fails.length ? '\u2717' : '\u2714'} ${pass}/${total} passed\n`);
   if (fails.length) { fails.forEach((f) => console.log('  ' + f)); process.exit(1); }
