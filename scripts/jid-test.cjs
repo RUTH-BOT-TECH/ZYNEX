@@ -88,6 +88,38 @@ t('works with no socket at all (does not throw)', () => {
   assert.strictEqual(jid.resolveSendJid(`${OWN_LID}@lid`, null), `${OWN_LID}@lid`);
 });
 
+console.log('\n══ device suffix — the actual stall ══\n');
+
+t('a device-suffixed PN is stripped (this is what stalled in production)', () => {
+  // sendConnectionMessage used `user.id` straight from creds, which is
+  // 2348021016309:11@s.whatsapp.net. Baileys addresses device 11 only and the
+  // phone waits forever.
+  assert.strictEqual(
+    jid.resolveSendJid('2348021016309:11@s.whatsapp.net', sock),
+    '2348021016309@s.whatsapp.net',
+  );
+});
+
+t('a device-suffixed own LID becomes our bare PN', () => {
+  assert.strictEqual(
+    jid.resolveSendJid('48190237720785:11@lid', sock),
+    '2348021016309@s.whatsapp.net',
+  );
+});
+
+t('stripDevice leaves groups alone', () => {
+  assert.strictEqual(jid.stripDevice('120363424039452916@g.us'), '120363424039452916@g.us');
+});
+
+t('stripDevice leaves a bare JID alone', () => {
+  assert.strictEqual(jid.stripDevice('2349165331115@s.whatsapp.net'), '2349165331115@s.whatsapp.net');
+});
+
+t('stripDevice tolerates junk', () => {
+  assert.strictEqual(jid.stripDevice(null), null);
+  assert.strictEqual(jid.stripDevice('nodomain'), 'nodomain');
+});
+
 console.log('\n══ learning from inbound keys ══\n');
 
 t('participantPn teaches a group participant LID', () => {
