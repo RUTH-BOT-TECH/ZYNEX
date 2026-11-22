@@ -134,6 +134,70 @@ const kindOf = (p) => p && ['image', 'video', 'audio', 'document'].find((k) => p
     txtB.length > 0 && /media key|WhatsApp limitation/i.test(txtB[0]), txtB[0]?.slice(0, 60) || 'silence');
   ok('…and it does not claim the bot broke', !/bug in the bot\.$/.test(txtB[0] || 'error'));
 
+  // ── somebody ELSE's view-once, captured when it arrived ────────────────────
+  // The reported bug: "if someone sent view once ... then reply to the view once
+  // it will bring that error". The quoted copy is stripped (no imageMessage, no
+  // key), and the old code bailed on that BEFORE consulting the stored original,
+  // so the one path that can work was never reached.
+  console.log("\n\u2550\u2550 somebody else's view-once \u2550\u2550\n");
+  const { storeMessage: store2 } = require(path.join(ROOT, 'lib', 'anti', 'antiDelete.js'));
+
+  const peerStanza = 'PEER_VIEWONCE_1';
+  store2({
+    key: { id: peerStanza, remoteJid: '123@g.us', fromMe: false },
+    message: {
+      viewOnceMessageV2Extension: {
+        message: {
+          imageMessage: {
+            mediaKey: 'realkey',
+            url: 'https://mmg.whatsapp.net/x',
+            mimetype: 'image/jpeg',
+            fileLength: 1234,
+          },
+        },
+      },
+    },
+  });
+
+  // The quote as WhatsApp actually delivers it: wrapper only, nothing usable.
+  const strippedPeerQuote = {
+    viewOnceMessageV2Extension: { message: { imageMessage: {} } },
+  };
+
+  const peerSent = []; const peerTxt = [];
+  const stubSock = {
+    sendMessage: async (jid, p) => { peerSent.push({ jid, ...p }); },
+  };
+
+  // Capture the diagnostic line: what matters is that the command takes the
+  // STORED-ORIGINAL path rather than rejecting the stripped quote. Asserting on
+  // a successful network download would make this test depend on WhatsApp's CDN.
+  const logs = [];
+  const realLog = console.log;
+  console.log = (...a) => { logs.push(a.join(' ')); };
+
+  await vv.execute({
+    sock: stubSock,
+    msg: {
+      message: { extendedTextMessage: { contextInfo: { quotedMessage: strippedPeerQuote, stanzaId: peerStanza } } },
+      pushName: 'T',
+    },
+    from: '123@g.us',
+    reply: async (t) => peerTxt.push(String(t)),
+    download: async () => { throw new Error('Cannot derive from empty media key'); },
+    dbSession: { phoneNumber: '2348021016309' },
+    args: [],
+  });
+  console.log = realLog;
+
+  ok('a stripped peer quote is NOT rejected — the stored original is used',
+    logs.some((l) => /downloading from the stored original/.test(l)),
+    logs.find((l) => /VV/.test(l)) || 'no [VV] line — took the wrong path');
+
+  ok('…and the failure is about the network, not a missing key',
+    !peerTxt.some((t) => /never received that view-once/i.test(t)),
+    String(peerTxt[0]).slice(0, 70));
+
   const total = pass + fails.length;
   console.log(`\n${fails.length ? '\u2717' : '\u2714'} ${pass}/${total} passed\n`);
   if (fails.length) { fails.forEach((f) => console.log('  ' + f)); process.exit(1); }
