@@ -20,7 +20,7 @@ The way real MD bots actually work: **one engine, many names.**
 | Names in catalogue | **2,067** |
 | Hand-written command files | **179** |
 | Engine-backed commands | **683** |
-| **Total real implementations** | **862** (41.7%) |
+| **Total real implementations** | **862** (43.6%) |
 | Honest "not wired up" stubs | 1,205 |
 
 Before this work the bot had **58** commands. Now **862** actually do something.
@@ -116,3 +116,29 @@ Safety decisions:
   detection and gets the number banned. The warning system with auto-kick
   at the limit is the safe equivalent.
 - Warnings persist in `data/groups.json` across restarts.
+
+## Audio engine detail (`lib/engines/audio.js`)
+
+**Verified with real ffmpeg 7.0.2** — 43/43 effects tested against a synthesized
+3-second 440 Hz MP3; every one returned valid MP3 audio sent as a voice note.
+
+Proof the filters are genuinely applied (not just re-encoded):
+
+| filter | output duration | expected |
+|---|---|---|
+| original | 3.03 s | — |
+| `nightcore` | 2.43 s | ÷1.25 ✓ |
+| `vaporwave` | 3.79 s | ÷0.80 ✓ |
+| `slow` | 4.31 s | ÷0.70 ✓ |
+
+### How ffmpeg is resolved (`lib/ffmpeg.js`)
+1. `FFMPEG_PATH` env var, if set and executable.
+2. `ffmpeg-static` npm package (bundled binary — **no server install needed**).
+3. System `ffmpeg` on `PATH`.
+
+All invocations use `execFile` with argv arrays, so no shell interpolation is
+possible. Audio is written to `os.tmpdir()` and cleaned up after every call.
+
+### Parametric
+- `.volume <0.1–10>` / `.vol <n>`
+- `.trim <seconds>` / `.cut <seconds>`

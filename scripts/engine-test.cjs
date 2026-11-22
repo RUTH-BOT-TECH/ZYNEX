@@ -53,7 +53,7 @@ async function run(cmdName, args = []) {
     ['strikethrough', ['text'], null],
     ['binary', ['hi'], '011'],
     ['morse', ['sos'], '...'],
-    ['reverse', ['abc'], 'cba'],
+    ['backwards', ['abc'], 'cba'],
     ['mock', ['hello'], null],
     ['upper', ['abc'], 'ABC'],
     ['clap', ['a b'], '👏'],

@@ -27,10 +27,130 @@
       "streak": 1,
       "lastDaily": 1795339001155,
       "createdAt": 1795339001139
+    },
+    "test1795339183288": {
+      "id": "test1795339183288",
+      "wallet": 1482,
+      "bank": 100,
+      "xp": 55,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [
+        {
+          "name": "Rex",
+          "kind": "dog",
+          "hunger": 100,
+          "level": 1
+        }
+      ],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 1,
+      "lastDaily": 1795339183304,
+      "createdAt": 1795339183289
+    },
+    "test1795339190110": {
+      "id": "test1795339190110",
+      "wallet": 1719,
+      "bank": 100,
+      "xp": 55,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [
+        {
+          "name": "Rex",
+          "kind": "dog",
+          "hunger": 100,
+          "level": 1
+        }
+      ],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 1,
+      "lastDaily": 1795339190125,
+      "createdAt": 1795339190110
+    },
+    "test1795339202795": {
+      "id": "test1795339202795",
+      "wallet": 1683,
+      "bank": 100,
+      "xp": 55,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [
+        {
+          "name": "Rex",
+          "kind": "dog",
+          "hunger": 100,
+          "level": 1
+        }
+      ],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 1,
+      "lastDaily": 1795339202814,
+      "createdAt": 1795339202796
+    },
+    "test1795339231169": {
+      "id": "test1795339231169",
+      "wallet": 1682,
+      "bank": 100,
+      "xp": 55,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [
+        {
+          "name": "Rex",
+          "kind": "dog",
+          "hunger": 100,
+          "level": 1
+        }
+      ],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 1,
+      "lastDaily": 1795339231185,
+      "createdAt": 1795339231170
     }
   },
   "cooldowns": {
     "test1795339001139:daily:daily": 1795339001155,
-    "test1795339001139:earn:work": 1795339001155
+    "test1795339001139:earn:work": 1795339001155,
+    "test1795339183288:daily:daily": 1795339183303,
+    "test1795339183288:earn:work": 1795339183304,
+    "test1795339190110:daily:daily": 1795339190124,
+    "test1795339190110:earn:work": 1795339190125,
+    "test1795339202795:daily:daily": 1795339202814,
+    "test1795339202795:earn:work": 1795339202815,
+    "test1795339231169:daily:daily": 1795339231184,
+    "test1795339231169:earn:work": 1795339231185
   }
 }
