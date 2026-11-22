@@ -17,13 +17,13 @@ The way real MD bots actually work: **one engine, many names.**
 
 | | count |
 |---|---|
-| Names in catalogue | **2,113** |
+| Names in catalogue | **2,115** |
 | Hand-written command files | **179** |
-| Engine-backed commands | **994** |
-| **Total real implementations** | **1,173** (55.5%) |
-| Honest "not wired up" stubs | 940 |
+| Engine-backed commands | **1,026** |
+| **Total real implementations** | **1,205** (57.0%) |
+| Honest "not wired up" stubs | 910 |
 
-Before this work the bot had **58** commands. Now **1,173** actually do something,
+Before this work the bot had **58** commands. Now **1,205** actually do something,
 and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 
 ## The engines
@@ -43,6 +43,7 @@ and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 | `search` | 46 | music, anime, TV, sport scores, news, food, how-to, rhymes |
 | `ai` | 56 | chat, codegen, rewriting + image generation on the one free model |
 | `security` | 32 | link scanning, leak checks, real TOTP, headers/TLS audit |
+| `stalk` | 30 | public profiles (GitHub, npm, chess), number/country info, honest refusals |
 | `reactions` | 41 | anime GIFs — `.hug .kiss .slap` +38 |
 | `islamic` | 32 | Quran, prayer times, qibla, hijri, duas |
 | `media` | 23 | cats, dogs, foxes, neko, waifu |
@@ -107,6 +108,7 @@ Drop the file in — the registry picks it up on boot. No wiring.
 | `test:logos` | every logo returns a decodable PNG | 86 |
 | `test:ai` | refusals, throttle contract, one live text + image | 39 |
 | `test:security` | RFC 6238 vectors, live verdicts, refusals | 31 |
+| `test:stalk` | live profiles + every refusal boundary | 39 |
 | `test:nodead` | no command is a placeholder | all 1,080 |
 | `audit` | one owner per name | 2,108 names |
 
@@ -471,6 +473,55 @@ TOTP is checked against all four **RFC 6238 published test vectors** in the suit
 Lookalike detection compares the *raw* hostname to the brand before de-leeting it —
 the first version de-leeted `paypa1` → `paypal` and then skipped it as "the genuine
 domain", which is the exact case the check exists to catch.
+
+## Stalk engine detail (`lib/engines/stalk.js`, 30 names)
+
+"Stalk" commands mean *look up a public profile*. This engine draws a hard line
+between that and identifying a private person, and the line is enforced in code.
+
+### What actually works
+
+| Commands | Source | Returns |
+|---|---|---|
+| `.ghstalk` `.gitstalk` | `api.github.com/users/<u>` + `/repos` | name, bio, company, location, repo/star/follower counts, joined date, top languages, 3 most recent repos |
+| `.npmstalk` | `registry.npmjs.org/<pkg>` | latest version, version count, licence, author, created/updated, last 3 releases |
+| `.chessstalk` `.codmstalk` | `api.chess.com/pub/player/<u>` | title, country, followers, blitz/rapid/daily ratings, join date |
+| `.lichestalk` | `lichess.org/api/user/<u>` | games played, top ratings by variant, joined, last seen |
+| `.spotifystalk` `.soundcloudstalk` `.ytstalk` | iTunes artist search, Deezer fallback | genre, artist id, latest album, fan count |
+| `.telestalk` | `api.tvmaze.com/search/people` | country, birthday, and what they are known for |
+| `.numinfo` `.phoneinfo` `.carrier` | local dial-plan table | country, dial code, E.164, number-shape sanity, and the **original** network for Nigerian prefixes |
+| `.countrycode` | local dial-plan table | dial code from a country name or ISO code |
+
+### The line
+
+**`.waexists` `.wanumber` `.waprofile` `.checkwa` `.wastalk` refuse — twice over.**
+
+*Technically:* WhatsApp publishes no lookup API. Checking whether a number is
+registered needs an authenticated client, and even that reveals nothing about a
+stranger's photo, name or online status. Anything else is scraping or guessing.
+
+*Deliberately:* silently checking whose number something is, is the behaviour
+that gets bot accounts banned and people harassed. The command says so plainly
+and points at `.numinfo` (digits only, never contacts WhatsApp) and `.scan`.
+
+**`.igstalk` `.ttstalk` `.twstalk` `.tgstalk` `.pinstalk` `.redditstalk`
+`.steamstalk` `.robloxstalk` `.mlstalk` `.pubgstalk` `.genshinstalk` `.ffstalk`
+refuse.** Verified dead ends: Steam needs a key, Roblox returns 000/403, Reddit
+returns 403, and the rest publish nothing without a login. Scraping around that
+is against their terms and breaks silently — so every one of these points at the
+five lookups that do work.
+
+### What `.numinfo` will not tell you
+
+It reports the country, the dial code, a shape sanity check, and (for Nigerian
+numbers) the network that prefix was originally allocated to. It prints, every
+time:
+
+> 🚫 What this does *not* do: it will not tell you who owns the number, where they
+> are, or show their WhatsApp. No keyless service knows that, and a bot should not
+> pretend to.
+
+Number portability means even the network is a best guess, and the reply says so.
 
 ## Search engine detail (`lib/engines/search.js`, 46 names)
 

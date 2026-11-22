@@ -70,6 +70,11 @@ why every entry here has its payload shape noted.
 | `dns.google/resolve` | `.blocklist_check` `.honeypot` | SPF/DMARC/DKIM/MX/NS — JSON DoH |
 | `otx.alienvault.com/api/v1/indicators/...` | `.reputation` | threat pulse count |
 | `api.macvendors.com/<mac>` | (available) | MAC vendor |
+| `api.github.com/users/<u>` | `.ghstalk .gitstalk` | profile + repos |
+| `registry.npmjs.org/<pkg>` | `.npmstalk` | package metadata |
+| `api.chess.com/pub/player/<u>` | `.chessstalk` | ratings + stats |
+| `lichess.org/api/user/<u>` | `.lichestalk` | perfs + activity |
+| `api.tvmaze.com/search/people` | `.telestalk` | person + credits |
 | `api.datamuse.com/words?rel_rhy=` | `.rhyme` | rhyming words |
 
 ## Rendering locally instead of calling out
@@ -118,6 +123,10 @@ why every entry here has its payload shape noted.
 | `api.abuseipdb.com` | 401 (key required) | AlienVault OTX |
 | `rdap.org` | 302 to the registry; use the registry directly | rdap.verisign.com |
 | `rdap.identitydigital.services` | 404 for `.org` lookups | — |
+| `api.steampowered.com` | 403 — needs a key and a vanity resolve | — |
+| `api.roblox.com` | 000 / 403 from this host | — |
+| `reddit.com/user/*/about.json` | 403 to bot user-agents | — |
+| Instagram / TikTok / Twitter / Telegram / PUBG / Genshin | no keyless endpoint at all | GitHub, npm, chess, Lichess, TVmaze |
 | `api.jikan.moe` (retry) | still times out — **do not retry** | AniList GraphQL |
 | `wikihow.com/api.php` | 500 | Wikipedia search |
 | `itunes.apple.com?media=movie` | 200 but `resultCount: 0` for every term | — (no keyless film DB) |

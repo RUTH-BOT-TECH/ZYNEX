@@ -103,10 +103,26 @@ async function run(command, args = [], sender = '2348111000005@s.whatsapp.net') 
 
   /* ── 5. live: Safe Browsing must flag a known-bad domain ── */
   console.log('');
+  // Google 429s if the suite runs several times close together, so retry with a
+  // pause — but a genuinely unreachable service must still fail the suite.
+  const withRetry = async (fn, tries = 3) => {
+    let lastErr;
+    for (let i = 0; i < tries; i++) {
+      try {
+        return await fn();
+      } catch (e) {
+        lastErr = e;
+        if (!/429|HTTP 5/.test(e.message)) throw e;
+        await new Promise((r) => setTimeout(r, 4000 * (i + 1)));
+      }
+    }
+    throw lastErr;
+  };
+
   try {
-    const bad = await sec._internals.safeBrowsing('testsafebrowsing.appspot.com');
+    const bad = await withRetry(() => sec._internals.safeBrowsing('testsafebrowsing.appspot.com'));
     ok('Safe Browsing flags the known-malware test site', bad.verdict === 'dangerous', JSON.stringify(bad.flags));
-    const clean = await sec._internals.safeBrowsing('google.com');
+    const clean = await withRetry(() => sec._internals.safeBrowsing('google.com'));
     ok('Safe Browsing does not flag google.com', clean.verdict === 'clean', clean.verdict);
   } catch (e) {
     ok('Safe Browsing reachable', false, e.message);
@@ -124,7 +140,7 @@ async function run(command, args = [], sender = '2348111000005@s.whatsapp.net') 
 
   /* ── 7. .scan output contract ── */
   console.log('');
-  const badScan = await run('scan', ['testsafebrowsing.appspot.com']);
+  const badScan = await withRetry(() => run('scan', ['testsafebrowsing.appspot.com']));
   ok('.scan calls a known-bad site HIGH risk', /HIGH/.test(badScan) && /DANGEROUS/.test(badScan), badScan.split('\n').slice(0, 4).join(' | '));
   const goodScan = await run('scan', ['google.com']);
   ok('.scan does not call google.com high risk', !/HIGH/.test(goodScan) && /CLEAN|LOW/.test(goodScan), goodScan.split('\n').slice(0, 4).join(' | '));
