@@ -117,10 +117,14 @@ t('the refresh is applied only to self-sends, not every send', () => {
 
 console.log('\n══ .vv on an unrecoverable stub ══\n');
 
-t('.vv explains that a self-sent view-once is unrecoverable', () => {
+t('.vv explains that an unrecoverable view-once is not a transient failure', () => {
+  // The wording was rewritten when the stored-original lookup moved to the
+  // front; the requirement is unchanged — the reply must not suggest "try
+  // again later" for something that cannot come back.
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'commands', 'vv.js'), 'utf8');
-  assert.ok(/no retry will change that/i.test(src), 'must not imply a transient failure');
-  assert.ok(/never gave this device the media key/i.test(src), 'must give the real reason');
+  assert.ok(/never received that view-once/i.test(src), 'must name the real situation');
+  assert.ok(/nothing to unlock/i.test(src), 'must not imply a transient failure');
+  assert.ok(/Nothing can recover it/i.test(src), 'must be honest about permanence');
 });
 
 console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);
