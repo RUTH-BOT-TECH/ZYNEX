@@ -15,8 +15,9 @@
     "audit": "node scripts/audit-commands.cjs",
     "test:games": "node scripts/games-test.cjs",
     "test:freetext": "node scripts/freetext-test.cjs",
-    "test:all": "node scripts/smoke-test.cjs && node scripts/engine-test.cjs && node scripts/games-test.cjs && node scripts/chess-test.cjs && node scripts/freetext-test.cjs && node scripts/audit-commands.cjs",
-    "test:chess": "node scripts/chess-test.cjs"
+    "test:all": "node scripts/smoke-test.cjs && node scripts/engine-test.cjs && node scripts/games-test.cjs && node scripts/chess-test.cjs && node scripts/board-test.cjs && node scripts/freetext-test.cjs && node scripts/audit-commands.cjs",
+    "test:chess": "node scripts/chess-test.cjs",
+    "test:boards": "node scripts/board-test.cjs"
   },
   "engines": {
     "node": ">=18.0.0"

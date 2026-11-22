@@ -36,7 +36,10 @@ const txt=()=>String((sent[sent.length-1]||{}).text||(sent[sent.length-1]||{}).c
   const st = await rd();
   const secret = st.chats[CHAT].wordle.word;
   sent.length=0; await ft('zzzzz');
-  ok('wrong guess gives colour board', /⬛|🟨|🟩/.test(txt()), txt().slice(0,40));
+  // wordle now answers with a rendered grid image, not a text board
+  const wl = sent[sent.length-1];
+  const wlIsPng = wl.image && wl.image.slice(0,4).toString('hex') === '89504e47';
+  ok('wrong guess returns a board (image or colours)', wlIsPng || /⬛|🟨|🟩/.test(txt()), txt().slice(0,40));
   sent.length=0; await ft(secret);
   ok('correct word solves', /SOLVED/.test(txt()) && /coins/.test(txt()), txt().slice(0,70));
 
@@ -45,7 +48,9 @@ const txt=()=>String((sent[sent.length-1]||{}).text||(sent[sent.length-1]||{}).c
   const st2 = await rd();
   const hw = st2.chats[CHAT].hangman.word;
   sent.length=0; await ft('q');
-  ok('miss reported', /Miss|Hit/.test(txt()), txt().slice(0,40));
+  const hm = sent[sent.length-1];
+  const hmIsPng = hm.image && hm.image.slice(0,4).toString('hex') === '89504e47';
+  ok('miss reported', hmIsPng || /Miss|Hit/.test(txt()), txt().slice(0,40));
   sent.length=0; await ft(hw);
   ok('whole word solves', /SOLVED/.test(txt()), txt().slice(0,60));
 
@@ -77,7 +82,9 @@ const txt=()=>String((sent[sent.length-1]||{}).text||(sent[sent.length-1]||{}).c
   console.log('\n── 2048 real movement ──');
   sent.length=0; await games.execute(ctx('2048'));
   sent.length=0; await ft('left');
-  ok('2048 responds to plain direction', /2048|Score/.test(txt()), txt().slice(0,40));
+  const b2 = sent[sent.length-1];
+  const b2IsPng = b2.image && b2.image.slice(0,4).toString('hex') === '89504e47';
+  ok('2048 responds to plain direction', b2IsPng || /Score/.test(txt()), txt().slice(0,40));
 
   console.log('\n── anagram / typeracer / wordchain ──');
   sent.length=0; await games.execute(ctx('anagram'));

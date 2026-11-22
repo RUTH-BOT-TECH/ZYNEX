@@ -235,3 +235,35 @@ replays to the same FEN the bot rendered.
 A FEN carries no history, which would silently break undo, threefold repetition
 and PGN. Chess state is also flushed to disk **synchronously** after every move —
 a debounced write meant a restart inside 300 ms lost the move.
+
+## Board rendering (`lib/gameboard.js`)
+
+Every board game sends a **PNG image**, not an ASCII grid — same reasoning as
+chess: identical on every phone, no monospace-font dependency, tappable, and
+readable at WhatsApp preview size.
+
+| game | command | rendered board |
+|---|---|---|
+| X & O | `.tictactoe @friend` | 3×3 grid, winning line drawn through it |
+| Connect 4 | `.connect4 @friend` | 7×6 blue board, winning four ringed |
+| 2048 | `.2048` | coloured tiles + live score |
+| Minesweeper | `.minesweeper` | numbered cells, mines drawn as shapes |
+| Sudoku | `.sudoku` | 9×9 with 3×3 block shading |
+| Maze | `.maze` | walls, green dot, flag |
+| Wordle | `.wordle` | green/yellow/grey tiles per guess |
+| Hangman | `.hangman` | gallows drawn one limb at a time |
+
+**Shapes, not glyphs.** X and O are two strokes and a circle; mines are a circle
+with eight spokes; the hangman is lines and a circle. Nothing depends on a font
+shipping the right Unicode codepoint, so the boards render identically on the
+Render host as they do here.
+
+Every renderer falls back to the original text board if `sharp` ever fails, so a
+missing native binary degrades instead of breaking the command.
+
+### The bug this caught
+`tttWinner`/`c4Winner` originally returned a bare `'X'`/`1`. The renderers read
+`w.line` to draw the winning stroke — always `undefined`, so wins silently lost
+their highlight while everything still "worked". Both now return
+`{ winner, line }`, and `scripts/board-test.cjs` asserts the win image is **not
+byte-identical** to the pre-win board.
