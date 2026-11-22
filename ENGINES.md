@@ -17,13 +17,13 @@ The way real MD bots actually work: **one engine, many names.**
 
 | | count |
 |---|---|
-| Names in catalogue | **2,115** |
+| Names in catalogue | **2,121** |
 | Hand-written command files | **179** |
-| Engine-backed commands | **1,026** |
-| **Total real implementations** | **1,205** (57.0%) |
-| Honest "not wired up" stubs | 910 |
+| Engine-backed commands | **1,061** |
+| **Total real implementations** | **1,240** (58.5%) |
+| Honest "not wired up" stubs | 881 |
 
-Before this work the bot had **58** commands. Now **1,205** actually do something,
+Before this work the bot had **58** commands. Now **1,240** actually do something,
 and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 
 ## The engines
@@ -44,6 +44,7 @@ and `scripts/no-dead-commands.cjs` proves none of them is a placeholder.
 | `ai` | 56 | chat, codegen, rewriting + image generation on the one free model |
 | `security` | 32 | link scanning, leak checks, real TOTP, headers/TLS audit |
 | `stalk` | 30 | public profiles (GitHub, npm, chess), number/country info, honest refusals |
+| `sticker` | 35 | text stickers, emoji artwork, image→sticker edits, meme captions |
 | `reactions` | 41 | anime GIFs — `.hug .kiss .slap` +38 |
 | `islamic` | 32 | Quran, prayer times, qibla, hijri, duas |
 | `media` | 23 | cats, dogs, foxes, neko, waifu |
@@ -145,6 +146,7 @@ a suite has to fake part of the context, that part belongs in this suite first.
 | `test:ai` | refusals, throttle contract, one live text + image | 39 |
 | `test:security` | RFC 6238 vectors, live verdicts, refusals | 31 |
 | `test:stalk` | live profiles + every refusal boundary | 39 |
+| `test:stickers` | WhatsApp 512/WebP/1 MB/alpha contract | 38 |
 | `test:nodead` | no command is a placeholder | all 1,080 |
 | `audit` | one owner per name | 2,108 names |
 
@@ -558,6 +560,52 @@ time:
 > pretend to.
 
 Number portability means even the network is a best guess, and the reply says so.
+
+## Sticker engine detail (`lib/engines/sticker.js`, 35 names)
+
+Everything local except emoji artwork. WhatsApp's rules are enforced, not hoped for.
+
+| Commands | What it does |
+|---|---|
+| `.ttp2 .ttp3 .ttp4 .ttp5 .ttp6 .attp2 .attp3 .ttps .stickertext` | text stickers — plain plate, star burst, or speech bubble; `.attp*` picks a random palette |
+| `.emoji .emojisticker .emoji2sticker .emojigif` | one big emoji, or a row of up to six |
+| `.emixt 😂 🔥` | two emoji composited into one sticker |
+| `.stickercircle .stickerrounded .stickerflip .stickerrotate .stickercrop .stickersquare .stickerblur .sticker2 .stickerpack` | real image edits that keep transparency |
+| `.stickerwm <label>` | watermark pill, placed on the **picture** |
+| `.smeme top \| bottom` | meme captions with outline text |
+| `.webp2png .webp2mp4 .gif2mp4` | format conversion (ffmpeg-static for video) |
+
+### The WhatsApp contract
+
+Every path returns **512×512 WebP under 1 MB with an alpha channel**. `toSticker()`
+fits the image inside the box (never stretching it), centres it on a transparent
+square, and steps quality down 15 points at a time if the result is over the size
+ceiling — a 4 MB sticker is accepted by the API and then refused by the phone,
+which looks to the user like the bot is broken.
+
+### Two bugs this suite was written after
+
+**`.emoji 🚀` rendered the text "01F680".** This container has **no emoji font** —
+`fc-match "Noto Color Emoji"` falls back to DejaVu, which has no colour glyphs, so
+sharp drew the codepoint as plain characters. Now emoji artwork comes from
+**Twemoji SVGs** (jsDelivr, keyless, CC-BY). The suite asserts the result is
+actually *coloured* (pixel variance > 3), not merely a valid image — a black
+"01F680" on transparent would have passed every format check.
+
+**The watermark landed beside the picture.** `.stickerwm` resized with
+`fit: contain`, which leaves letterbox bands, then placed the pill at a corner of
+the 512 canvas — inside the band. It now trims to the art box first and places the
+pill relative to the *trimmed* image. The suite samples the pill's pixels and
+requires them to be dark.
+
+### Honest refusals
+
+| Command | Why | Points to |
+|---|---|---|
+| `.img2txt` | the one keyless model generates images, it cannot read them | `.toimage`, `.convert metadata`, `.scan` |
+| `.stickersearch` | Giphy/Tenor sticker endpoints need keys; keyless GIF services only serve GIFs, which WhatsApp takes as video | `.stiker`, `.ttp2`, `.emoji`, `.emojimix` |
+| `.tgsticker` | Telegram import needs a bot token | `.ssweb`, `.stiker` |
+| `.tourl2` | `.upload` already runs two keyless hosts; catbox/litterbox/0x0.st/file.io are all dead, so a second implementation would be the same code | `.upload` |
 
 ## Search engine detail (`lib/engines/search.js`, 46 names)
 

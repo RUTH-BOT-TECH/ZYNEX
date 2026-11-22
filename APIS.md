@@ -49,6 +49,7 @@ why every entry here has its payload shape noted.
 | `itunes.apple.com/search` | `.play` fallback | 30s preview |
 | `text.pollinations.ai/<prompt>` | `.chat .explain .codegen` +15 | plain-text answer, keyless |
 | `image.pollinations.ai/prompt/<p>` | `.imagine .aiart .ghibli` +12 | JPEG bytes, keyless |
+| `cdn.jsdelivr.net/gh/twitter/twemoji` | `.emoji .emixt .emojisticker` | colour emoji SVG artwork (CC-BY) |
 | `api.deezer.com/search` | `.track .album .artist .playlist .genre` | tracks, albums, artists, playlists |
 | `graphql.anilist.co` (**POST**) | `.anilist .manga .animeinfo .mangainfo .character` | anime + manga metadata |
 | `api.tvmaze.com/search/shows` | `.series .tv .movie .movies .imdb` | `[{show:{…}}]` |
