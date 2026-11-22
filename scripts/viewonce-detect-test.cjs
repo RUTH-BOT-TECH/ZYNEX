@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+/**
+ * View-once detection and the browser identity that makes it possible.
+ *
+ * The production finding this encodes:
+ *
+ *   [VV] node inventory. keys=["interactiveAnnotations","scanLengths",
+ *        "annotations","viewOnce"] directPath=MISSING url=MISSING mediaKey=MISSING
+ *
+ * WhatsApp withholds view-once media from web-class linked devices. A companion
+ * announcing Chrome/Ubuntu gets a placeholder, so the bot never receives the
+ * content and there is nothing to cache — `.vv` then has nothing to unlock no
+ * matter how correct the command is.
+ *
+ * Baileys 7 added Browsers.android(), which announces a companion that does
+ * receive view-once media, plus normalizeMessageContent() which covers every
+ * wrapper shape.
+ */
+process.env.SILENT = '1';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.resolve(__dirname, '..');
+let pass = 0, fail = 0;
+function t(name, fn) {
+  try { fn(); console.log(`  ✓ ${name}`); pass++; }
+  catch (e) { console.log(`  ✗ ${name}  ❌ ${e.message}`); fail++; }
+}
+
+const baileys = require('@whiskeysockets/baileys');
+
+console.log('\n══ browser identity ══\n');
+
+t('Baileys 7 exposes an android identity', () => {
+  assert.ok(typeof baileys.Browsers.android === 'function', 'Browsers.android is missing');
+  const b = baileys.Browsers.android('ZYNEX');
+  assert.deepStrictEqual(b, ['ZYNEX', 'Android', '']);
+});
+
+t('the socket announces Android, not Chrome/Ubuntu', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
+  assert.ok(/Browsers\.android/.test(src),
+    'still pairing as a web-class device — view-once media is withheld from those');
+  assert.ok(/WA_BROWSER/.test(src), 'no way to fall back to the web identity');
+});
+
+t('the android path is the default', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
+  assert.ok(/process\.env\.WA_BROWSER === 'web'/.test(src),
+    'the web identity must be the opt-in, not the default');
+});
+
+console.log('\n══ detection across every wrapper ══\n');
+
+const viewOnceShapes = {
+  'viewOnceMessage': { viewOnceMessage: { message: { imageMessage: { url: 'u', mediaKey: 'k' } } } },
+  'viewOnceMessageV2': { viewOnceMessageV2: { message: { imageMessage: { url: 'u', mediaKey: 'k' } } } },
+  'viewOnceMessageV2Extension': { viewOnceMessageV2Extension: { message: { imageMessage: { url: 'u', mediaKey: 'k' } } } },
+  'ephemeral-nested': { ephemeralMessage: { message: { viewOnceMessageV2: { message: { imageMessage: { url: 'u', mediaKey: 'k' } } } } } },
+};
+
+for (const [name, shape] of Object.entries(viewOnceShapes)) {
+  t(`detects ${name}`, () => {
+    const { findMedia } = require(path.join(ROOT, 'lib', 'mediaCache.js'));
+    const node = findMedia(shape);
+    assert.ok(node, `media node not found in ${name}`);
+    assert.ok(node.mediaKey, 'the media key was lost while unwrapping');
+  });
+}
+
+t('the flat viewOnce flag on an image is recognised as view-once', () => {
+  const { findMedia } = require(path.join(ROOT, 'lib', 'mediaCache.js'));
+  const node = findMedia({ imageMessage: { viewOnce: true, url: 'u', mediaKey: 'k' } });
+  assert.ok(node && node.viewOnce === true);
+});
+
+t('a placeholder stub is not mistaken for media', () => {
+  // exactly what production received
+  const { findMedia } = require(path.join(ROOT, 'lib', 'mediaCache.js'));
+  const node = findMedia({
+    imageMessage: { viewOnce: true, annotations: [], scanLengths: [], interactiveAnnotations: [] },
+  });
+  assert.ok(node && !node.mediaKey && !node.url, 'stub should be detectable as un-cacheable');
+});
+
+t('capture refuses a stub instead of storing junk', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
+  assert.ok(/cacheable/.test(src), 'no cacheability check before download');
+  assert.ok(/\[VV-ARRIVE\]/.test(src), 'view-once arrivals must be logged to be diagnosable');
+});
+
+console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);
+process.exit(fail === 0 ? 0 : 1);
