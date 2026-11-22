@@ -30,7 +30,7 @@
     },
     "2348333333333": {
       "id": "2348333333333",
-      "wallet": 1395,
+      "wallet": 2800,
       "bank": 0,
       "xp": 0,
       "level": 1,
@@ -51,7 +51,7 @@
     },
     "2348111000002": {
       "id": "2348111000002",
-      "wallet": 1200,
+      "wallet": 1400,
       "bank": 0,
       "xp": 0,
       "level": 1,
@@ -72,7 +72,7 @@
     },
     "2348111000001": {
       "id": "2348111000001",
-      "wallet": 32643,
+      "wallet": 33243,
       "bank": 0,
       "xp": 103,
       "level": 4,
@@ -127,6 +127,62 @@
       "streak": 0,
       "lastDaily": 0,
       "createdAt": 1795352199556
+    },
+    "test1795357994580": {
+      "id": "test1795357994580",
+      "wallet": 1578,
+      "bank": 100,
+      "xp": 55,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [
+        {
+          "name": "Rex",
+          "kind": "dog",
+          "hunger": 100,
+          "level": 1
+        }
+      ],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 1,
+      "lastDaily": 1795357994598,
+      "createdAt": 1795357994581
+    },
+    "test1795358011766": {
+      "id": "test1795358011766",
+      "wallet": 1293,
+      "bank": 100,
+      "xp": 55,
+      "level": 1,
+      "inventory": {},
+      "job": null,
+      "partner": null,
+      "pets": [
+        {
+          "name": "Rex",
+          "kind": "dog",
+          "hunger": 100,
+          "level": 1
+        }
+      ],
+      "stats": {
+        "worked": 0,
+        "mined": 0,
+        "fished": 0,
+        "hunted": 0,
+        "robbed": 0
+      },
+      "streak": 1,
+      "lastDaily": 1795358011794,
+      "createdAt": 1795358011767
     }
   },
   "cooldowns": {
@@ -154,6 +210,10 @@
     "2348111000001:earn:rob": 1795352274099,
     "2348111000001:earn:steal": 1795352274099,
     "2348111000001:daily:weekly": 1795352274099,
-    "2348111000001:earn:work": 1795352274100
+    "2348111000001:earn:work": 1795352274100,
+    "test1795357994580:daily:daily": 1795357994598,
+    "test1795357994580:earn:work": 1795357994599,
+    "test1795358011766:daily:daily": 1795358011793,
+    "test1795358011766:earn:work": 1795358011794
   }
 }

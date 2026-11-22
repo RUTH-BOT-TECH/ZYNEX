@@ -441,15 +441,36 @@ function cp(){
 
 async function dc(){
   const ph=localStorage.getItem('zynex_ph');
-  if(!ph)return;
-  if(!confirm('Disconnect your bot session?'))return;
+  if(!ph){showToast('⚠️ No session saved in this browser');return;}
+  if(!confirm('Disconnect '+ph+'?\n\nThe bot stops working until you pair again.'))return;
+  // `pw` was an undefined global here (the real one is sitePw(), and a `const pw`
+  // inside go() is block-scoped). JSON.stringify dropped the undefined key, so
+  // the request went out with no password and no auth cookie, got a 401, and the
+  // empty catch{} hid it — the page reloaded saying "Disconnected" while the
+  // session stayed connected. Never report success on a failed request.
+  let r;
   try{
-    await fetch('/api/disconnect',{
+    r = await fetch('/api/disconnect',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({phoneNumber:ph,password:pw})
+      headers:{'Content-Type':'application/json','x-site-password':sitePw()},
+      body:JSON.stringify({phoneNumber:ph})
     });
-  }catch{}
+  }catch(e){
+    showToast('❌ Network error — session was NOT disconnected');
+    return;
+  }
+  if(!r.ok){
+    let msg='HTTP '+r.status;
+    try{ msg=(await r.json()).error||msg; }catch{}
+    showToast('❌ Not disconnected: '+msg+'\nUse WhatsApp → Linked Devices to remove it.');
+    return;
+  }
+  let j={};
+  try{ j=await r.json(); }catch{}
+  if(j.ok===false){
+    showToast('❌ Not disconnected: '+(j.error||j.message||'unknown error'));
+    return;
+  }
   localStorage.removeItem('zynex_ph');
   showToast('🔌 Disconnected');
   setTimeout(()=>location.reload(),1000);
