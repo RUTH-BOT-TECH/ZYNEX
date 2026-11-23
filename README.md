@@ -23,6 +23,23 @@ cp .env.example .env     # set OWNER_NUMBER
 npm start                # open http://localhost:4000 and pair
 ```
 
+## Make it yours
+
+Fork it and rename it without opening a single source file. Three variables:
+
+```bash
+BOT_NAME=AZURE-MD          # the name in chat, stickers, logos, the panel
+OWNER_NUMBER=2348012345678 # digits only, country code, no + and no leading 0
+SITE_URL=https://your-app.up.railway.app   # where your users pair
+```
+
+That is the whole rebrand. `scripts/rebrand-test.cjs` boots the server as a
+different bot and fails the build if any user-visible string still says the old
+name, or if the panel stops answering. It also fails if the name is defined in
+two places, so it cannot drift back.
+
+Deploy with `npm run deploy` — it pushes to GitHub and Railway together.
+
 ## Commands
 
 `2,139 names · 1,294 working · 60.5%` — the rest answer with an honest refusal and
