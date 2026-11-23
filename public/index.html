@@ -305,13 +305,48 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
   <div class="foot">
     <div class="pp">ZYNEX <span class="red">MD</span> × ZYNEX</div>
     <p>⚡ Premium WhatsApp Bot · v4.3.0</p>
-    <p style="margin-top:6px"><a href="https://github.com/RUTH-BOT-TECH/ZYNEX" target="_blank" rel="noopener">GitHub Repo ↗</a></p>
+    <p style="margin-top:6px">
+      <a id="repoLink" href="https://github.com/RUTH-BOT-TECH/ZYNEX" target="_blank" rel="noopener">
+        <span id="repoStar">☆</span> <span id="repoLabel">GitHub Repo</span> ↗
+      </a>
+    </p>
+    <p id="starNote" style="font-size:11px;opacity:.55;margin-top:4px">
+      Star it once you are signed in on GitHub — one click, no extra login.
+    </p>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+/**
+ * Repo link + live star count.
+ *
+ * GitHub has no anonymous star endpoint (PUT /user/starred returns 401), so the
+ * best a page can honestly do is show the count and send the visitor to the
+ * repo, where the button is one click for anyone already signed in. Nothing
+ * here pretends to star on their behalf.
+ */
+function paintRepo(info){
+  const link = document.getElementById('repoLink');
+  const label = document.getElementById('repoLabel');
+  const star = document.getElementById('repoStar');
+  const note = document.getElementById('starNote');
+  if(!link) return;
+  if(info && info.repo) link.href = info.repo;
+  const n = info && typeof info.stars === 'number' ? info.stars : null;
+  if(n === null){
+    // No count: do not invent one. Just name the link.
+    if(note) note.textContent = 'Star it on GitHub if the bot is useful.';
+    return;
+  }
+  star.textContent = n > 0 ? '★' : '☆';
+  label.textContent = 'GitHub Repo · ' + n + (n === 1 ? ' star' : ' stars');
+  if(note) note.textContent = n > 0
+    ? 'Thanks to everyone who starred it.'
+    : 'Be the first to star it — one click once you are signed in.';
+}
+
 function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;
@@ -505,6 +540,9 @@ async function loadSessions(){
   try{
     d = await (await fetch('/api/status',{headers:{'x-site-password':sitePw()}})).json();
   }catch{ return; }
+  // Repo + star count are public fields, so paint them before the auth gate
+  // below returns early for a visitor who has not entered the password.
+  paintRepo(d);
   if(!d || !d.authorized){ return; }   // no password yet — nothing to manage
   const card = document.getElementById('ses-card');
   const list = document.getElementById('ses-list');

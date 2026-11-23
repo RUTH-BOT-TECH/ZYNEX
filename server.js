@@ -22,6 +22,7 @@ const path = require('path');
 
 const { ensureDB, prisma } = require('./lib/db');
 const sessionManager = require('./lib/sessionManager');
+const { REPO_URL } = require('./lib/botInfo');
 
 const app = express();
 // Port logic:
@@ -131,6 +132,9 @@ app.get('/health', (req, res) => {
 app.get('/api/status', async (req, res) => {
   try {
     const authed = isAuthorized(req);
+    // Cached for 10 minutes; null when GitHub is unreachable or rate-limited,
+    // which the page renders as no count rather than a wrong one.
+    const star = await require('./lib/star').starCount();
     const sessions = await sessionManager.getAllSessions();
     const activeSessions = sessions.filter(s => s.status === 'connected').length;
     res.json({
@@ -156,6 +160,11 @@ app.get('/api/status', async (req, res) => {
           })),
       // the page needs to know to ask for the password
       authHint: SITE_PASSWORD && !authed ? 'password required for full access' : undefined,
+      // Repo + live star count, so the page's link is informative rather than a
+      // dead anchor. GitHub forbids anonymous starring, so this is a count and
+      // a link — never a fake "star for me" action.
+      repo: REPO_URL,
+      stars: star ? star.stars : null,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
