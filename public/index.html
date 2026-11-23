@@ -4,8 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>ZYNEX-MD — Premium WhatsApp Bot</title>
+<script>
+/*
+ * A fork-er's panel must not carry our name in the browser tab. The static
+ * title stays as the first paint; paintBrand() replaces it from /api/status.
+ */
+</script>
 <meta name="theme-color" content="#0a0608">
-<meta name="description" content="ZYNEX-MD — Premium WhatsApp Bot. Powered by ZYNEX. Pair your number and unlock 1,294 working commands.">
+<meta name="description" content="ZYNEX-MD — Premium WhatsApp Bot. Pair your number and unlock the full command set.">
+<meta name="application-name" content="ZYNEX-MD">
 <link rel="icon" type="image/png" href="/assets/favicon.png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -166,8 +173,8 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     </div>
     <div class="hero-meta">
       <div>
-        <div class="hero-title">ZYNEX <span class="red">MD</span></div>
-        <div class="hero-sub">⚡ Powered by ZYNEX ⚡</div>
+        <div class="hero-title" id="brandTitle">ZYNEX <span class="red">MD</span></div>
+        <div class="hero-sub" id="brandSub">⚡ Powered by ZYNEX ⚡</div>
       </div>
       <span class="hero-badge">👑 v4.3</span>
     </div>
@@ -303,7 +310,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 
   <!-- === FOOTER === -->
   <div class="foot">
-    <div class="pp">ZYNEX <span class="red">MD</span> × ZYNEX</div>
+    <div class="pp" id="brandCredit">ZYNEX <span class="red">MD</span> × ZYNEX</div>
     <p>⚡ Premium WhatsApp Bot · v4.3.0</p>
     <p style="margin-top:6px">
       <a id="repoLink" href="https://github.com/RUTH-BOT-TECH/ZYNEX" target="_blank" rel="noopener">
@@ -327,6 +334,33 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
  * repo, where the button is one click for anyone already signed in. Nothing
  * here pretends to star on their behalf.
  */
+/**
+ * A fork-er's panel must show the fork-er's name, not ours.
+ *
+ * The HTML ships with our name so the first paint is never blank; this rewrites
+ * it from /api/status, which reads BOT_NAME. "ZYNEX MD" is split into two spans
+ * so the red accent survives any name, and the look is identical either way.
+ */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function paintBrand(name){
+  if(!name) return;
+  const parts = String(name).split(/[-_ ]+/).filter(Boolean);
+  const last = parts.length > 1 ? parts.pop() : '';
+  const head = parts.join(' ');
+  const html = last ? `${esc(head)} <span class="red">${esc(last)}</span>` : esc(head);
+  const title = document.getElementById('brandTitle');
+  const sub = document.getElementById('brandSub');
+  const credit = document.getElementById('brandCredit');
+  if(title) title.innerHTML = html;
+  if(sub) sub.textContent = `⚡ Powered by ${name} ⚡`;
+  if(credit) credit.innerHTML = `${html} × ${esc(name)}`;
+  document.title = `${name} — Premium WhatsApp Bot`;
+  const meta = document.querySelector('meta[name="application-name"]');
+  if(meta) meta.setAttribute('content', name);
+}
+
 function paintRepo(info){
   const link = document.getElementById('repoLink');
   const label = document.getElementById('repoLabel');
@@ -543,6 +577,7 @@ async function loadSessions(){
   // Repo + star count are public fields, so paint them before the auth gate
   // below returns early for a visitor who has not entered the password.
   paintRepo(d);
+  paintBrand(d && d.botName);   // before the gate: a visitor without the password still sees the name
   if(!d || !d.authorized){ return; }   // no password yet — nothing to manage
   const card = document.getElementById('ses-card');
   const list = document.getElementById('ses-list');

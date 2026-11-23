@@ -133,6 +133,31 @@ const boot = (env, ms = 12000) => new Promise(async (res) => {
     if (!/<!doctype html/i.test(page.body)) throw new Error('not html');
     if (!page.body.includes('id="repoLink"')) throw new Error('star widget missing');
   });
+
+  /* ── the panel itself is the same product ────────────────────────────────
+     A fork-er should get a panel that looks and works exactly like this one,
+     with their name on it. Not a stripped copy, not a different page. */
+  t('a fork-er gets the identical panel, not a stripped copy', () => {
+    if (!page) throw new Error('page did not load');
+    const mine = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+    if (page.body.length !== mine.length) throw new Error('served page differs from the file on disk');
+    for (const id of ['repoLink', 'brandTitle', 'brandSub', 'brandCredit', 'ses-card']) {
+      if (!page.body.includes(`id="${id}"`)) throw new Error(`panel is missing #${id}`);
+    }
+  });
+
+  t('the panel renames itself from /api/status, not from the source', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+    if (!/function\s+paintBrand/.test(html)) throw new Error('no paintBrand()');
+    if (!/paintBrand\(\s*d\s*&&\s*d\.botName\s*\)/.test(html)) throw new Error('paintBrand is not fed the API name');
+    // and the endpoint it reads must actually carry the name
+    if (!status) throw new Error('no status payload to check');
+    let j = {};
+    try { j = JSON.parse(status.body); } catch { throw new Error('status not JSON'); }
+    if (!j.botName) throw new Error('/api/status does not expose botName');
+    if (/ZYNEX/.test(j.botName)) throw new Error('status still reports our name: ' + j.botName);
+    if (j.botName !== 'AZURE-MD') throw new Error('status reports the wrong name: ' + j.botName);
+  });
   site.kill();
 
   console.log(`\n${fail ? '✗' : '✔'} ${pass}/${pass + fail} passed`);
