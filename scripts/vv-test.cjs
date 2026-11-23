@@ -181,6 +181,46 @@ const run = async (message, { cached = null } = {}) => {
     if (!/unwrapForLog/.test(src)) throw new Error('the log cannot see inside the wrapper');
   });
 
+  /* ── the forward route: what other devs actually do ───────────────────── */
+  await (async () => {
+    const { msg } = replyTo({
+      viewOnceMessageV2: { message: imageNode({ viewOnce: true }) },
+    });
+    const sent = [];
+    const fakeSock = { sendMessage: async (jid, content) => { sent.push(content); return {}; }, updateMediaMessage: async () => ({}) };
+    const ctx = {
+      sock: fakeSock, msg, from: '234@g.us',
+      reply: async () => ({}), download: undefined, args: [],
+      dbSession: { phoneNumber: '2348000000001' },
+    };
+    const cache = require('../lib/mediaCache');
+    const realGet = cache.getCachedMedia;
+    cache.getCachedMedia = () => null;
+    try { await vv.execute(ctx); } finally { cache.getCachedMedia = realGet; }
+
+    t('a view-once that carries a wrapper is relayed, not re-uploaded', () => {
+      const fwd = sent.find((c) => c && c.forward);
+      if (!fwd) throw new Error('nothing was forwarded; payloads sent: ' + sent.length);
+      if (fwd.viewOnce !== false) throw new Error('viewOnce:false missing — Baileys would re-wrap it');
+      return true;
+    });
+
+    t('the relayed node no longer says viewOnce', () => {
+      const fwd = sent.find((c) => c && c.forward);
+      if (!fwd) throw new Error('nothing forwarded');
+      const fresh = JSON.parse(JSON.stringify(fwd.forward.message));
+      const node = fresh.viewOnceMessageV2?.message || fresh.imageMessage || fresh;
+      if (node.imageMessage?.viewOnce || node.viewOnce) throw new Error('viewOnce survived — it would arrive as another view-once');
+      return true;
+    });
+
+    t('it is delivered once, not twice', () => {
+      const mediaish = sent.filter((c) => c && (c.image || c.video || c.audio || c.forward));
+      if (mediaish.length > 1) throw new Error('posted ' + mediaish.length + ' copies');
+      return true;
+    });
+  })();
+
   /* ── the dead route stays dead, and documented ────────────────────────── */
   t('the source records why requestPlaceholderResend was not used', () => {
     const src = require('fs').readFileSync(path.resolve(__dirname, '../lib/commands/vv.js'), 'utf8');

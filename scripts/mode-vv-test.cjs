@@ -196,8 +196,15 @@ const kindOf = (p) => p && ['image', 'video', 'audio', 'document'].find((k) => p
   });
   console.log = realLog;
 
+  /*
+   * What matters is that a stripped peer quote is NOT rejected, and that the
+   * media comes from somewhere real. It used to be asserted that the stored
+   * original was downloaded; relaying the original node with the viewOnce flag
+   * stripped is now the first route (it is what the working bots do, and it
+   * avoids re-uploading), so this asserts delivery rather than the mechanism.
+   */
   ok('a stripped peer quote is NOT rejected — the stored original is used',
-    logs.some((l) => /stored original/.test(l)),
+    logs.some((l) => /stored original|forward the original|media cache/i.test(l)),
     logs.find((l) => /VV/.test(l)) || 'no [VV] line — took the wrong path');
 
   ok('…and the failure is about the network, not a missing key',
