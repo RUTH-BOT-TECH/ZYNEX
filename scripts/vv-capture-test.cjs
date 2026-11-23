@@ -122,6 +122,31 @@ const capture = async (msg, dl) => {
     if (!/viewOnceMessageV2/.test(src)) throw new Error('wrapper handling disappeared');
   });
 
+  /* ── the primitive, not the helper ─────────────────────────────────────── */
+  await ta('the production capture uses downloadContentFromMessage, not the helper', async () => {
+    /*
+     * The helper (downloadMediaMessage) inspects a message object, guesses the
+     * content type and unwraps; every failure in this area came from that
+     * inspection. The primitive takes (node, kind) and cannot misidentify
+     * anything — this is the call the reference makes at arrival time.
+     */
+    const src = fs.readFileSync(path.resolve(__dirname, '../lib/mediaCache.js'), 'utf8');
+    if (!/downloadContentFromMessage\(media, kind\)/.test(src)) {
+      throw new Error('capture does not use the primitive');
+    }
+    // and with no injected downloader the real one is exercised
+    const real = await cache.precacheMedia({
+      key: { id: 'REAL-PATH-' + Date.now(), remoteJid: 'x' },
+      message: { viewOnceMessageV2: { message: { imageMessage: {
+        mimetype: 'image/jpeg', mediaKey: Buffer.from('k'),
+        directPath: '/v/x', url: 'https://mmg.whatsapp.net/v/x',
+      } } } },
+    });
+    // a fake URL cannot download; what matters is that it TRIED and returned
+    // null with a log rather than throwing
+    if (real !== null) throw new Error('a fake url produced a cache entry');
+  });
+
   t('the pre-check that skipped keyless media is gone from both arrival paths', () => {
     const sessionSrc = fs.readFileSync(path.resolve(__dirname, '../lib/sessionManager.js'), 'utf8');
     if (/if \(cacheable && \(await precacheMedia/.test(sessionSrc)) {
