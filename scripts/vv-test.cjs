@@ -155,6 +155,32 @@ const run = async (message, { cached = null } = {}) => {
     });
   })();
 
+  /* ── the re-upload route ──────────────────────────────────────────────── */
+  t('an expired item with a media key attempts a re-upload', () => {
+    const src = require('fs').readFileSync(path.resolve(__dirname, '../lib/commands/vv.js'), 'utf8');
+    if (!/updateMediaMessage\(\{/.test(src)) throw new Error('the media-retry route is not wired');
+    // it must only fire when there is a key to retry with
+    if (!/retryableNode\s*=\s*hasKey/.test(src)) throw new Error('retry does not check for a mediaKey');
+  });
+
+  t('the retry route is tried after the free routes, not instead of them', () => {
+    const src = require('fs').readFileSync(path.resolve(__dirname, '../lib/commands/vv.js'), 'utf8');
+    const retryAt = src.indexOf("name: 'media retry request");
+    const cacheAt = src.indexOf('served from the media cache');
+    if (cacheAt === -1) throw new Error('cache route missing');
+    if (retryAt < cacheAt) throw new Error('a network retry runs before the free cache read');
+  });
+
+  /* ── the arrival log ──────────────────────────────────────────────────── */
+  t('a view-once that arrives with no media node is still logged', () => {
+    const src = require('fs').readFileSync(path.resolve(__dirname, '../lib/sessionManager.js'), 'utf8');
+    // the old line lived inside `if (node)` — the keyless case logged nothing
+    if (!/if \(m\.key\?\.isViewOnce \|\| node\?\.viewOnce\)/.test(src)) {
+      throw new Error('a keyless view-once arrival is invisible in the logs');
+    }
+    if (!/unwrapForLog/.test(src)) throw new Error('the log cannot see inside the wrapper');
+  });
+
   /* ── the dead route stays dead, and documented ────────────────────────── */
   t('the source records why requestPlaceholderResend was not used', () => {
     const src = require('fs').readFileSync(path.resolve(__dirname, '../lib/commands/vv.js'), 'utf8');
