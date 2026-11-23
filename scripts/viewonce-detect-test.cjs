@@ -49,13 +49,20 @@ t('Baileys 7 exposes an android identity', () => {
  * CHROME while the OS said Android. WhatsApp refused to link the device.
  */
 t('the browser identity resolves to a real platform type', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
-  const m = /browser:\s*\[\s*'([^']+)'/.exec(src);
-  assert.ok(m, 'browser identity is not a literal array any more');
+  /*
+   * The tuple moved into lib/deviceIdentity.js so all three socket paths agree.
+   * What still matters is the original rule: browser[0] must be a PlatformType
+   * key, or Baileys silently pairs as CHROME while the OS field says otherwise.
+   */
+  const id = require('../lib/deviceIdentity');
   const { proto } = require('@whiskeysockets/baileys');
-  const platform = proto.DeviceProps.PlatformType[m[1].toUpperCase()];
-  assert.ok(platform !== undefined,
-    `'${m[1]}' is not a PlatformType — it silently falls back to CHROME`);
+  for (const name of Object.keys(id.PRESETS)) {
+    const r = id.resolve(name);
+    const platform = proto.DeviceProps.PlatformType[String(r.browser[0]).toUpperCase()];
+    assert.ok(platform !== undefined,
+      `${name}: '${r.browser[0]}' is not a PlatformType — it silently falls back to CHROME`);
+    assert.strictEqual(platform, r.platform, `${name}: platform disagrees with browser[0]`);
+  }
 });
 
 t('the identity does not use the bot name as a browser name', () => {
