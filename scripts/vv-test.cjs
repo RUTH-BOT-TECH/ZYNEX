@@ -181,6 +181,30 @@ const run = async (message, { cached = null } = {}) => {
     if (!/unwrapForLog/.test(src)) throw new Error('the log cannot see inside the wrapper');
   });
 
+  /* ── the failure that was actually happening ──────────────────────────── */
+  await (async () => {
+    const stub = { interactiveAnnotations: {}, scanLengths: [], annotations: {}, viewOnce: true };
+    const { msg } = replyTo(stub);
+    msg.key.fromMe = true;                 // ← 13 of 14 production attempts
+    const out = await run(msg);
+    t('a view-once the bot sent itself says so, instead of guessing', () => {
+      const joined = out.join('\n');
+      if (!/you sent yourself/i.test(joined)) throw new Error('did not identify the self-sent case: ' + joined.slice(0, 140));
+      if (!/ask somebody else to send/i.test(joined)) throw new Error('does not say how to test it properly');
+    });
+  })();
+
+  await (async () => {
+    const stub = { interactiveAnnotations: {}, scanLengths: [], annotations: {}, viewOnce: true };
+    const { msg } = replyTo(stub);
+    msg.key.fromMe = false;                // somebody else's, but still a stub
+    const out = await run(msg);
+    t("somebody else's stub is not blamed on the sender", () => {
+      const joined = out.join('\n');
+      if (/you sent yourself/i.test(joined)) throw new Error('misattributed a peer message to the user');
+    });
+  })();
+
   /* ── the forward route: what other devs actually do ───────────────────── */
   await (async () => {
     const { msg } = replyTo({
