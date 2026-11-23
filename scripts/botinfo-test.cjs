@@ -80,6 +80,44 @@ const BANNED = [
   /YOURNAME/,
 ];
 
+/**
+ * ★ public/ is scanned too.
+ *
+ * The first version of this suite only walked lib/, so the pairing page kept
+ * shipping "https://github.com/YOUR-USERNAME/zynex-md" as the repo link while
+ * every test passed. Anything a user can see is in scope: server pages, static
+ * assets and the docs.
+ */
+const userFacingPages = [];
+for (const dir of ['public', '.']) {
+  const d = path.join(ROOT, dir);
+  if (!fs.existsSync(d)) continue;
+  for (const f of fs.readdirSync(d)) {
+    if (/^(README|DEPLOY|STRUCTURE|ENGINES|RAILWAY-NOTES)\.md$/i.test(f)) { userFacingPages.push(path.join(d, f)); continue; }
+    if (!dir.endsWith('public') && d === ROOT) { if (f === 'public') continue; }
+    if (/\.(html|css)$/i.test(f)) userFacingPages.push(path.join(d, f));
+  }
+}
+
+t('no page or doc ships a placeholder identity', () => {
+  const hits = [];
+  for (const f of userFacingPages) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const re of BANNED) {
+      if (re.test(src)) hits.push(`${path.relative(ROOT, f)}: ${re}`);
+    }
+  }
+  assert.deepStrictEqual(hits, [], 'placeholders found:\n' + hits.join('\n'));
+});
+
+t('the pairing page links to the real repo', () => {
+  const page = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  const m = page.match(/href="(https:\/\/github\.com\/[^"]+)"/);
+  assert.ok(m, 'no GitHub link on the pairing page');
+  assert.ok(!/YOUR-USERNAME/i.test(m[1]), `pairing page links to ${m[1]}`);
+  assert.strictEqual(m[1], info.REPO_URL, `page links ${m[1]}, botInfo says ${info.REPO_URL}`);
+});
+
 t('no command prints a placeholder identity', () => {
   const hits = [];
   for (const f of userFacing) {
