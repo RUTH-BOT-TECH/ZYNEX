@@ -22,7 +22,6 @@ const path = require('path');
 
 const { ensureDB, prisma } = require('./lib/db');
 const sessionManager = require('./lib/sessionManager');
-const { REPO_URL } = require('./lib/botInfo');
 
 const app = express();
 // Port logic:
@@ -30,7 +29,7 @@ const app = express();
 //   - Render sets PORT → use that
 //   - Else (mini-service alongside Next.js on port 3000), use 3001
 const PORT = process.env.SERVER_PORT || process.env.PORT || 3001;
-const BOT_NAME = process.env.BOT_NAME || 'ZYNEX-MD';
+const { BOT_NAME, REPO_URL } = require('./lib/botInfo');
 const PAIRING_CODE_TTL = parseInt(process.env.PAIRING_CODE_TTL || '90', 10);
 
 /**

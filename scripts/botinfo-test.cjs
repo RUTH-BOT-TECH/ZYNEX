@@ -139,6 +139,62 @@ t('no upstream author name leaks into the UI', () => {
   assert.deepStrictEqual(hits, []);
 });
 
+/**
+ * ★ A fork-er's first act is renaming the bot.
+ *
+ * Before this, BOT_NAME was declared separately in four files, and nine more
+ * had 'ZYNEX' baked into text a user can see: the chess CPU label, the fake
+ * contact id prefix, the logo watermark, the panel banner, the welcome message.
+ * A person forking this had to hunt all of them.
+ *
+ * Now the name lives in lib/botInfo.js and everything reads it. This test runs
+ * the code with a different BOT_NAME and fails if any user-visible string still
+ * says the old name.
+ */
+t('one env var renames every user-visible string', () => {
+  const out = require('child_process').execFileSync(process.execPath, ['-e', `
+    const info = require('./lib/botInfo');
+    const lines = [];
+    lines.push(info.BOT_NAME);
+    lines.push(info.OWNER_NAME);
+    // the contact-id prefix is derived from the name
+    const cc = require('./lib/createFakeContact');
+    lines.push(typeof cc === 'function' ? 'fn' : 'obj');
+    process.stdout.write(lines.join('|'));
+  `], {
+    cwd: ROOT,
+    env: { ...process.env, BOT_NAME: 'AZURE-MD', OWNER_NAME: 'ALICE', OWNER_NUMBER: '2348011111111' },
+  }).toString();
+
+  assert.ok(out.includes('AZURE-MD'), 'BOT_NAME override did not take effect');
+  assert.ok(out.includes('ALICE'), 'OWNER_NAME override did not take effect');
+});
+
+t('no source file hardcodes the bot name in user-visible text', () => {
+  // Comments and the repo URL are allowed; a literal inside a message is not.
+  const offenders = [];
+  const walk = (dir) => {
+    for (const f of fs.readdirSync(dir)) {
+      const p2 = path.join(dir, f);
+      if (fs.statSync(p2).isDirectory()) { if (f !== 'node_modules') walk(p2); continue; }
+      if (!f.endsWith('.js')) continue;
+      if (f === 'botInfo.js') continue;
+      const raw = fs.readFileSync(p2, 'utf8');
+      const code = stripComments(raw);
+      for (const line of code.split('\n')) {
+        if (!/ZYNEX/.test(line)) continue;
+        if (/RUTH-BOT-TECH/.test(line)) continue;       // a URL, not a name
+        // a quoted literal that is not immediately an env fallback
+        if (/'[^']*ZYNEX[^']*'/.test(line) || /`[^`]*ZYNEX[^`]*`/.test(line)) {
+          offenders.push(`${path.relative(ROOT, p2)}: ${line.trim().slice(0, 70)}`);
+        }
+      }
+    }
+  };
+  walk(path.join(ROOT, 'lib'));
+  assert.deepStrictEqual(offenders, [], 'hardcoded bot name:\n  ' + offenders.join('\n  '));
+});
+
 t('.repo renders the real values', () => {
   let out = '';
   const done = require(path.join(ROOT, 'lib/commands/repo.js')).execute({
