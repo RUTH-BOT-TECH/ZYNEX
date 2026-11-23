@@ -1,0 +1,168 @@
+/**
+ * .vv — view-once unlock.
+ *
+ * The command was guessed at for a while. This pins it to the three shapes that
+ * actually arrive from WhatsApp and to the reference behaviour, so a change that
+ * quietly breaks one of them fails here instead of in a user's chat.
+ *
+ * Reference: juniorkrz/stickerbot #88 — the media comes from
+ * contextInfo.quotedMessage of a reply sent from the PHONE, and
+ * requestPlaceholderResend was tested and abandoned because the phone never
+ * answered. Baileys 7.0.0-rc14 will not even send that request for a view-once
+ * stanza ('view_once_unavailable_fanout' is excluded on purpose).
+ */
+const path = require('path');
+const assert = require('assert');
+const vv = require('../lib/commands/vv');
+const { _internals } = vv;
+
+let pass = 0, fail = 0;
+const t = (n, fn) => { try { fn(); console.log(`✔ ${n}`); pass++; } catch (e) { console.log(`✗ ${n}  ${e.message}`); fail++; } };
+
+/* ── the payload shapes ──────────────────────────────────────────────────── */
+t('audio is resent as a voice note, not a music file', () => {
+  const out = _internals.payloadFor('audio', Buffer.from('x'), { mimetype: 'audio/ogg' });
+  assert.strictEqual(out.ptt, true, 'missing ptt — WhatsApp renders a scrub bar');
+  assert.ok(/ogg/.test(out.mimetype));
+});
+
+t('a non-voice audio clip keeps ptt off', () => {
+  const out = _internals.payloadFor('audio', Buffer.from('x'), { mimetype: 'audio/mpeg', ptt: false });
+  assert.strictEqual(out.ptt, false);
+});
+
+t('image and video payloads stay plain', () => {
+  assert.ok(_internals.payloadFor('image', Buffer.from('x'), {}).image);
+  const v = _internals.payloadFor('video', Buffer.from('x'), { mimetype: 'video/mp4' });
+  assert.ok(v.video && v.mimetype === 'video/mp4');
+});
+
+t('a document keeps its own filename', () => {
+  const d = _internals.payloadFor('document', Buffer.from('x'), { fileName: 'invoice.pdf' });
+  assert.strictEqual(d.fileName, 'invoice.pdf');
+});
+
+/* ── helper: build a fake whatsapp message ───────────────────────────────── */
+const imageNode = (extra = {}) => ({
+  imageMessage: {
+    mimetype: 'image/jpeg',
+    mediaKey: Buffer.from('key'),
+    directPath: '/v/t62/x',
+    url: 'https://mmg.whatsapp.net/x',
+    ...extra,
+  },
+});
+const replyTo = (quotedMessage, { id = 'STANZA1', args = '' } = {}) => ({
+  msg: {
+    key: { remoteJid: '234@g.us', fromMe: false, id: 'CMD1' },
+    pushName: 'Tester',
+    message: {
+      extendedTextMessage: {
+        text: '.vv' + (args ? ' ' + args : ''),
+        contextInfo: { stanzaId: id, participant: '2348000000001@s.whatsapp.net', quotedMessage },
+      },
+    },
+  },
+  replied: [],
+});
+
+const run = async (message, { cached = null } = {}) => {
+  const replied = [];
+  const fakeSock = {
+    sendMessage: async () => ({}),
+    updateMediaMessage: async () => ({}),
+  };
+  const ctx = {
+    sock: fakeSock,
+    msg: message,
+    from: '234@g.us',
+    reply: async (txt) => { replied.push(String(txt)); return {}; },
+    download: undefined,
+    args: message.args || [],
+    dbSession: { phoneNumber: '2348000000001' },
+  };
+  /*
+   * Stub the route .vv reaches first — the media cache. Baileys exposes
+   * downloadContentFromMessage as a named ESM export, and assigning to it
+   * silently does nothing, so a stub there is a stub that never runs.
+   */
+  const cache = require('../lib/mediaCache');
+  const realGet = cache.getCachedMedia;
+  cache.getCachedMedia = (id) => (cached && id === 'STANZA1' ? Buffer.from(cached) : null);
+  try {
+    await vv.execute(ctx);
+  } finally {
+    cache.getCachedMedia = realGet;
+  }
+  return replied;
+};
+
+(async () => {
+  /* ── shape 1: the working route — quote carries the key ────────────────── */
+  await (async () => {
+    const { msg } = replyTo(imageNode());
+    const out = await run(msg, { cached: 'MEDIA-BYTES' });
+    t('a reply that carries the real media key is unlocked', () => {
+      // no error text means it went to sendMessage, which is success
+      const errs = out.filter((x) => x.startsWith('❌'));
+      if (errs.length) throw new Error('failed: ' + errs[0].slice(0, 120));
+    });
+  })();
+
+  /* ── shape 2: replying to nothing at all ──────────────────────────────── */
+  await (async () => {
+    const { msg } = replyTo(undefined);
+    const out = await run(msg);
+    t('a reply to a plain message says how to use it', () => {
+      assert.ok(out.some((x) => /Reply to a \*view-once\* message/i.test(x)), out[0]);
+      assert.ok(out.some((x) => /\.vv why/.test(x)), 'does not advertise the diagnosis command');
+    });
+  })();
+
+  /* ── shape 3: the stripped quote — the normal real-world failure ───────── */
+  await (async () => {
+    const stripped = { viewOnceMessageV2Extension: { message: {} } };
+    const { msg } = replyTo(stripped);
+    const out = await run(msg);
+    t('a stripped view-once quote explains what to do, not what went wrong', () => {
+      const joined = out.join('\n');
+      assert.ok(/Reply to it from your phone|phone/i.test(joined), joined.slice(0, 200));
+    });
+  })();
+
+  /* ── shape 4: the diagnosis command ───────────────────────────────────── */
+  await (async () => {
+    const stripped = { viewOnceMessageV2Extension: { message: {} } };
+    const { msg } = replyTo(stripped);
+    msg.message.extendedTextMessage.text = '.vv why';
+    msg.args = ['why'];
+    const out = await run(msg, { cached: null });
+    t('.vv why names the failure cause', () => {
+      const joined = out.join('\n');
+      assert.ok(/View-once diagnosis/.test(joined), joined.slice(0, 120));
+      assert.ok(/recipient|stripped|wrong thing/i.test(joined), 'no cause named');
+      assert.ok(/Quote carries media key: no/.test(joined), 'did not report the key state');
+    });
+  })();
+
+  /* ── shape 5: replying to a text message, not a view-once ─────────────── */
+  await (async () => {
+    const { msg } = replyTo({ conversation: 'just text' });
+    const out = await run(msg);
+    t('replying to ordinary text says there is nothing to unlock', () => {
+      const joined = out.join('\n');
+      assert.ok(/no view-once|nothing to unlock|Reply to a/i.test(joined), joined.slice(0, 160));
+    });
+  })();
+
+  /* ── the dead route stays dead, and documented ────────────────────────── */
+  t('the source records why requestPlaceholderResend was not used', () => {
+    const src = require('fs').readFileSync(path.resolve(__dirname, '../lib/commands/vv.js'), 'utf8');
+    assert.ok(/requestPlaceholderResend/.test(src), 'the dead route is not documented');
+    assert.ok(/view_once_unavailable_fanout/.test(src), 'the Baileys exclusion is not recorded');
+    assert.ok(!/await sock\.requestPlaceholderResend\(/.test(src), 'a dead route is being called live');
+  });
+
+  console.log(`\n${fail ? '✗' : '✔'} ${pass}/${pass + fail} passed`);
+  process.exit(fail ? 1 : 0);
+})();
