@@ -64,7 +64,24 @@ function formatPairCode(code) {
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    /*
+     * The service worker is the one file a browser will happily cache for a
+     * day and then refuse to update. `must-revalidate` is what lets a deploy
+     * actually reach an installed app.
+     */
+    if (filePath.endsWith('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+      res.setHeader('Service-Worker-Allowed', '/');
+    }
+    // The manifest should be re-read on each launch, not cached for a week.
+    if (filePath.endsWith('manifest.json')) {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Content-Type', 'application/manifest+json');
+    }
+  },
+}));
 
 // ============ ACCESS CONTROL ============
 

@@ -13,8 +13,16 @@
 <meta name="theme-color" content="#0a0608">
 <meta name="description" content="ZYNEX-MD — Premium WhatsApp Bot. Pair your number and unlock the full command set.">
 <meta name="application-name" content="ZYNEX-MD">
-<link rel="icon" type="image/png" href="/assets/favicon.png">
-<link rel="apple-touch-icon" href="/assets/favicon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iOS ignores the manifest for install; these tags are what make it a standalone app -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ZYNEX">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
@@ -333,6 +341,9 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 
   <!-- === FOOTER === -->
   <div class="foot">
+    <button id="installBtn" onclick="installApp()" style="display:none;width:100%;margin:14px 0 4px;padding:14px 18px;border:1px solid rgba(124,58,237,.55);border-radius:14px;background:linear-gradient(135deg,rgba(167,139,250,.22),rgba(124,58,237,.12));color:#e9e2ff;font-size:15px;font-weight:800;letter-spacing:.4px;cursor:pointer">
+      ⤓ Install ZYNEX as an app
+    </button>
     <div id="capLine" style="display:none;font-size:13px;opacity:.8;margin:10px 0 4px"></div>
     <div class="pp" id="brandCredit">ZYNEX <span class="red">MD</span> × ZYNEX</div>
     <p>⚡ Premium WhatsApp Bot · v4.3.0</p>
@@ -408,6 +419,86 @@ function saveAccess(){
   storeAccess(ph, code);
   showToast('🔑 Saved — loading your bot');
   loadSessions();
+}
+
+/*
+ * ── Installable app ───────────────────────────────────────────────────────
+ *
+ * Android/Chrome fires `beforeinstallprompt` when the app is installable; we
+ * hold that event and show the button, because the alternative is the user
+ * hunting through a browser menu. iOS never fires it — Safari has no install
+ * prompt at all — so there the button becomes instructions instead of a lie.
+ *
+ * Nothing here runs inside an already-installed app: standalone mode means the
+ * button would offer to install what is already installed.
+ */
+let deferredInstall = null;
+
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches
+      || window.navigator.standalone === true;
+}
+function isIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function paintInstall(){
+  const btn = document.getElementById('installBtn');
+  if(!btn) return;
+  if(isStandalone()){ btn.style.display = 'none'; return; }
+  if(deferredInstall){
+    btn.textContent = '⤓ Install ZYNEX as an app';
+    btn.style.display = 'block';
+    return;
+  }
+  if(isIOS()){
+    // Safari cannot be prompted programmatically. Say what to tap instead.
+    btn.textContent = '⤓ Add to Home Screen — tap Share, then “Add to Home Screen”';
+    btn.style.display = 'block';
+    btn.dataset.ios = '1';
+    return;
+  }
+  btn.style.display = 'none';
+}
+
+async function installApp(){
+  const btn = document.getElementById('installBtn');
+  if(btn && btn.dataset.ios){
+    showToast('📲 Share → Add to Home Screen');
+    return;
+  }
+  if(!deferredInstall){ showToast('Open this page in Chrome or Safari to install'); return; }
+  deferredInstall.prompt();
+  const choice = await deferredInstall.userChoice;
+  deferredInstall = null;
+  paintInstall();
+  showToast(choice && choice.outcome === 'accepted' ? '✅ Installed' : 'Install cancelled');
+}
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();               // keep the mini-infobar from hijacking the page
+  deferredInstall = e;
+  paintInstall();
+});
+window.addEventListener('appinstalled', ()=>{
+  deferredInstall = null;
+  paintInstall();
+  showToast('✅ ZYNEX installed');
+});
+
+/*
+ * The service worker is what makes the browser treat this as an app at all.
+ * Registered after load so it never delays the first paint, and it is skipped
+ * on insecure origins, where registration would throw.
+ */
+if('serviceWorker' in navigator && location.protocol === 'https:'){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js').catch(e=>{
+      console.warn('service worker not registered:', e.message);
+    });
+  });
 }
 
 function paintCapacity(c){
@@ -658,6 +749,7 @@ async function loadSessions(){
   // below returns early for a visitor who has not entered the password.
   paintRepo(d);
   paintCapacity(d && d.capacity);
+  paintInstall();
   paintBrand(d && d.botName);   // before the gate: a visitor without the password still sees the name
   if(!d || !d.authorized){ return; }   // no password yet — nothing to manage
   const card = document.getElementById('ses-card');

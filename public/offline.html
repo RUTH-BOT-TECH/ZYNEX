@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Offline — ZYNEX-MD</title>
+<meta name="theme-color" content="#0a0608">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100svh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 28px; text-align: center;
+    background: radial-gradient(120% 80% at 50% 0%, #1a0f2e 0%, #0a0608 60%);
+    color: #eef2f8; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  img { width: 96px; height: 96px; border-radius: 22px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .5px; }
+  p { margin: 0; max-width: 30ch; line-height: 1.6; color: #9aa0b8; font-size: 14px; }
+  button {
+    margin-top: 6px; padding: 13px 26px; border: 0; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg, #a78bfa, #7c3aed); color: #fff;
+    font-size: 15px; font-weight: 700; letter-spacing: .3px;
+  }
+  button:active { transform: scale(.97); }
+</style>
+</head>
+<body>
+  <img src="/assets/icon-192.png" alt="">
+  <h1>No connection</h1>
+  <p>The panel needs a live connection — it shows whether your bot is running, which cannot be guessed offline.</p>
+  <button onclick="location.replace('/')">Try again</button>
+</body>
+</html>
