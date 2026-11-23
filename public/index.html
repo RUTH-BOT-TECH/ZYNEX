@@ -310,6 +310,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 
   <!-- === FOOTER === -->
   <div class="foot">
+    <div id="capLine" style="display:none;font-size:13px;opacity:.8;margin:10px 0 4px"></div>
     <div class="pp" id="brandCredit">ZYNEX <span class="red">MD</span> × ZYNEX</div>
     <p>⚡ Premium WhatsApp Bot · v4.3.0</p>
     <p style="margin-top:6px">
@@ -344,6 +345,22 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 function esc(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+/**
+ * How many bots this host can hold. A deployer reselling access needs to know
+ * before they hit the wall, not after every user drops.
+ */
+function paintCapacity(c){
+  const el = document.getElementById('capLine');
+  if(!el || !c) return;
+  if(c.limit === 0){
+    el.textContent = `Hosting unlimited bots · ${c.usedMb} MB in use`;
+  }else{
+    const pct = c.percent === null ? '' : ` · ${c.percent}% memory`;
+    el.textContent = `Hosting up to ${c.limit} bots${pct} (${c.usedMb}/${c.limitMb} MB)`;
+  }
+  el.style.display = 'block';
+}
+
 function paintBrand(name){
   if(!name) return;
   const parts = String(name).split(/[-_ ]+/).filter(Boolean);
@@ -577,6 +594,7 @@ async function loadSessions(){
   // Repo + star count are public fields, so paint them before the auth gate
   // below returns early for a visitor who has not entered the password.
   paintRepo(d);
+  paintCapacity(d && d.capacity);
   paintBrand(d && d.botName);   // before the gate: a visitor without the password still sees the name
   if(!d || !d.authorized){ return; }   // no password yet — nothing to manage
   const card = document.getElementById('ses-card');

@@ -79,6 +79,7 @@ app.use(express.static(path.join(__dirname, 'public')));
  * The password is sent once, then kept in an httpOnly cookie, so the dashboard
  * works normally without re-prompting on every poll.
  */
+const capacity = require('./lib/capacity');
 const SITE_PASSWORD = process.env.SITE_PASSWORD || '';
 const TOKEN = SITE_PASSWORD
   ? require('crypto').createHash('sha256').update(`zynex:${SITE_PASSWORD}`).digest('hex')
@@ -138,6 +139,7 @@ app.get('/api/status', async (req, res) => {
     const activeSessions = sessions.filter(s => s.status === 'connected').length;
     res.json({
       botName: BOT_NAME,
+      capacity: { ...capacity.compute(), ...capacity.pressure() },
       version: '1.0.0',
       // tells the page whether to show a password box — never the password itself
       authRequired: Boolean(SITE_PASSWORD),
@@ -186,6 +188,27 @@ app.post('/api/pair', async (req, res) => {
       return res.status(401).json({ error: 'Wrong site password' });
     }
     setAuthCookie(res); // so the rest of the dashboard stops asking
+
+    /*
+     * Every hosted bot is a live WhatsApp socket holding ~50 MB. When the host
+     * runs out, the kernel kills this process and EVERY paired user drops at
+     * once, with nothing in the logs to explain it. Refusing one new pairing is
+     * the cheap way to protect all the existing ones.
+     *
+     * The cap is computed from real container memory, not hardcoded, so moving
+     * to a bigger plan raises it automatically. MAX_SESSIONS overrides.
+     */
+    const active = sessionManager.getSessionsCount();
+    const gate = capacity.canAccept(active);
+    if (!gate.ok) {
+      console.warn(`[PAIR] refused ${phoneNumber}: ${gate.message}`);
+      return res.status(503).json({
+        error: gate.message,
+        active,
+        limit: gate.cap.limit,
+        retryable: true,
+      });
+    }
 
     // Check if this number is already paired AND active
     const existing = await prisma.botSession.findUnique({ where: { phoneNumber } });
