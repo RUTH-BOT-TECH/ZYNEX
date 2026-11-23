@@ -44,7 +44,8 @@
     "test:convert": "node scripts/convert-test.cjs",
     "test:ytdlp": "node scripts/ytdlp-test.cjs",
     "postinstall": "node scripts/fetch-ytdlp.cjs",
-    "test:botinfo": "node scripts/botinfo-test.cjs"
+    "test:botinfo": "node scripts/botinfo-test.cjs",
+    "deploy": "git push origin main && railway up --detach --yes"
   },
   "engines": {
     "node": ">=20.0.0"
