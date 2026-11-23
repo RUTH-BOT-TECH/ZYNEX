@@ -2,7 +2,13 @@ services:
   - type: web
     name: zynex-md-bot
     runtime: node
-    plan: free
+    # ⚠ The FREE plan does not work for a WhatsApp bot:
+    #   1. no persistent disk — auth_state is wiped on every restart and the
+    #      user has to re-pair with a QR code
+    #   2. it sleeps after 15 minutes idle, which drops the WhatsApp socket
+    # Use starter, attach the disk below, and AUTH_DIR_ROOT sends every piece of
+    # state (sessions, balances, game boards, group settings) to that disk.
+    plan: starter
     region: singapore
     branch: main
     rootDir: .
@@ -10,9 +16,16 @@ services:
     startCommand: node server.js
     healthCheckPath: /health
     autoDeploy: true
+    disk:
+      name: zynex-state
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
+      # lib/paths.js reads this — one variable, all state.
+      - key: AUTH_DIR_ROOT
+        value: /data
       - key: BOT_NAME
         value: ZYNEX-MD
       # Set GEMINI_API_KEY in Render dashboard → Environment tab.

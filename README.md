@@ -62,3 +62,24 @@ Railway, Render or a VPS — it needs a persistent socket.
 [![Deploy](https://img.shields.io/badge/Deploy-Railway-7c3aed?style=for-the-badge&logo=railway&logoColor=white&labelColor=0d1117)](https://railway.app)
 
 <div align="center"><sub>Built with Baileys · sharp · ffmpeg-static</sub></div>
+
+### Hosting: what actually works
+
+The bot holds a live WhatsApp socket and writes state, so the host has to give
+you two things: **an always-on process** and **a disk that survives a restart.**
+
+| Host | Works? | What to set |
+|---|---|---|
+| **Railway** | ✅ | Mount a volume at `/data`, set `AUTH_DIR_ROOT=/data` |
+| **Render** | ⚠️ paid only | Starter plan (free sleeps + no disk), disk at `/data`, same env |
+| **VPS / Pterodactyl** | ✅ | `AUTH_DIR_ROOT=/path/to/state`, or leave unset |
+| **Fly.io** | ✅ | A volume, same env |
+| **Vercel / Netlify / any serverless** | ❌ | A WhatsApp socket cannot run in a request handler |
+
+**One variable moves all state.** `AUTH_DIR_ROOT` relocates sessions, economy
+balances, game boards, group settings, reminders and the media cache together.
+Leave it unset and everything goes to `./auth_state`, which is where this
+project has always written.
+
+Forking an existing deployment? Your old `data/*.json` files are copied into the
+new location once on first start, so balances and reminders are not lost.
