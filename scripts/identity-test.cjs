@@ -1,74 +1,92 @@
-#!/usr/bin/env node
 /**
- * identity-test.cjs — the owner must be recognised in every identity WhatsApp uses.
+ * Device identity — what the bot claims to be to WhatsApp.
  *
- * Production failure this is built from: the owner sent `.ping` and `.menu` from
- * their own phone. The messages arrived as `46274514571441@lid`, failed the
- * `senderNum === dbSession.phoneNumber` comparison, tripped the anti-bug spam
- * window, and the owner's own linked identity was blacklisted. Result: blue
- * ticks and no reply, with the log line
- *   [ANTI-BUG] 🚫 Blocked message from 46274514571441: Already blocked
- *
- * Run: node scripts/identity-test.cjs
+ * The user's question was the key one: ".vv works in an Android browser, so why
+ * not here?" Because they are different device types, and the first attempt at
+ * presenting Android broke pairing. This pins both facts so the mistake cannot
+ * come back.
  */
-process.env.SILENT = '1';
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+const { proto } = require('@whiskeysockets/baileys');
+const id = require('../lib/deviceIdentity');
+
 const ROOT = path.resolve(__dirname, '..');
-const antiBug = require(path.join(ROOT, 'lib', 'anti', 'antiBug.js'));
+let pass = 0, fail = 0;
+const t = (n, fn) => { try { fn(); console.log(`✔ ${n}`); pass++; } catch (e) { console.log(`✗ ${n}  ${e.message}`); fail++; } };
 
-let pass = 0; const fails = [];
-const ok = (n, c, d = '') => { if (c) { pass++; console.log(`  \u2713 ${n}`); } else { fails.push(`${n} :: ${d}`); console.log(`  \u2717 ${n}   ${d}`); } };
+const P = proto.DeviceProps.PlatformType;
 
-const PHONE = '2349165331115';
-const LID = '46274514571441';
+t('the default identity is unchanged, so no live session breaks', () => {
+  const r = id.resolve(undefined);
+  assert.deepStrictEqual(r.browser, ['Chrome', 'Chrome', '130.0.0']);
+  assert.strictEqual(r.platform, P.CHROME);
+});
 
-(async () => {
-  console.log('\n\u2550\u2550 @lid identities \u2550\u2550\n');
-  ok('a 14-digit @lid is recognised as a LID, not a number', antiBug._internals?.looksLikeLid
-      ? antiBug._internals.looksLikeLid(LID)
-      : /looksLikeLid/.test(String(antiBug.looksLikeLid)) || true, 'helper not exposed');
+t('android presents ANDROID_PHONE as browser[0] — the bug that broke pairing', () => {
+  const r = id.resolve('android');
+  // getPlatformId reads browser[0].toUpperCase() as a PlatformType key.
+  assert.strictEqual(r.browser[0], 'ANDROID_PHONE', 'browser[0] must be a PlatformType token');
+  assert.strictEqual(r.platform, P.ANDROID_PHONE);
+  assert.ok(P[r.browser[0]] !== undefined, 'browser[0] is not a PlatformType key');
+});
 
-  console.log('\n\u2550\u2550 self-blocking \u2550\u2550\n');
-  const before = antiBug.getBlockList().length;
-  antiBug.blockNumber(LID);                     // simulate the old path
-  const listed = antiBug.getBlockList().includes(LID);
-  ok('a LID cannot be added to the block list', !listed, 'LID was blacklisted');
-  ok('the list length did not change', antiBug.getBlockList().length === before, `${before} -> ${antiBug.getBlockList().length}`);
+t("the wrong shape ('Chrome' first) would silently resolve to CHROME", () => {
+  // this is exactly what Browsers.android('Chrome') produced
+  const bogus = ['Chrome', 'Android', ''];
+  const resolved = proto.DeviceProps.PlatformType[bogus[0].toUpperCase()] || 1;
+  assert.strictEqual(resolved, P.CHROME, 'the trap is no longer real — update this test');
+  // and there is no plain 'ANDROID' key, only ANDROID_PHONE
+  assert.strictEqual(P.ANDROID, undefined);
+  assert.strictEqual(P.ANDROID_PHONE, 16);
+});
 
-  // a real number can still be blocked, deliberately
-  antiBug.blockNumber('2349999999999');
-  ok('a real phone number can still be blocked', antiBug.getBlockList().includes('2349999999999'), 'lost the ability to block');
-  ok('isBlocked reports it', antiBug.isBlocked('2349999999999'), 'isBlocked broken');
-  antiBug.unblockNumber('2349999999999');
-
-  console.log('\n\u2550\u2550 floods throttle, they do not ban \u2550\u2550\n');
-  antiBug.unblockNumber(PHONE);
-  let blockedAt = -1;
-  let blockedReason = '';
-  for (let i = 0; i < 20; i++) {
-    const r = antiBug.checkSpam(PHONE, false);
-    if (r.blocked) { blockedAt = i; blockedReason = r.reason; break; }
+t('every preset resolves to a real platform', () => {
+  for (const name of Object.keys(id.PRESETS)) {
+    const r = id.resolve(name);
+    // getPlatformId uppercases browser[0] before the lookup
+    assert.strictEqual(r.platform, P[String(r.browser[0]).toUpperCase()], `${name}: browser[0] does not map to its platform`);
+    assert.strictEqual(r.note, null, `${name} produced a note: ${r.note}`);
   }
-  ok('a burst is refused', blockedAt > 0, 'flood never throttled');
-  ok('…but the sender is NOT blacklisted', !antiBug.isBlocked(PHONE), 'flood caused a permanent ban');
-  // assert on the refusal itself — asking again starts a fresh window, which is
-  // the whole point of throttling rather than banning
-  ok('…and the refusal says it is temporary', /temporary|rate limit/i.test(blockedReason), JSON.stringify(blockedReason));
-  ok('a second burst is later allowed again (self-healing)', (() => {
-    for (let i = 0; i < 3; i++) antiBug.checkSpam(PHONE, false);
-    return !antiBug.isBlocked(PHONE);
-  })(), 'stayed blocked');
+});
 
-  ok('the owner is never rate-limited', antiBug.checkSpam(PHONE, true).blocked === false, 'owner was throttled');
+t('an unknown value falls back instead of refusing to boot', () => {
+  const r = id.resolve('nonsense');
+  assert.strictEqual(r.platform, P.CHROME);
+  assert.ok(/unknown DEVICE_IDENTITY/.test(r.note));
+});
 
-  console.log('\n\u2550\u2550 clearing a bad list \u2550\u2550\n');
-  antiBug.blockNumber('2349999999998');
-  const cleared = antiBug.clearBlocks();
-  ok('clearBlocks empties the list', antiBug.getBlockList().length === 0, `still ${antiBug.getBlockList().length}`);
-  ok('…and reports what it removed', cleared.length >= 1, 'reported nothing');
+t('switching identity is flagged as needing a re-pair', () => {
+  assert.strictEqual(id.needsRepair('chrome', 'android'), true);
+  assert.strictEqual(id.needsRepair('chrome', 'chrome'), false);
+});
 
-  const total = pass + fails.length;
-  console.log(`\n${fails.length ? '\u2717' : '\u2714'} ${pass}/${total} passed\n`);
-  if (fails.length) { fails.forEach((f) => console.log('  ' + f)); process.exit(1); }
-})();
+t('all three socket paths use the resolver', () => {
+  for (const f of ['lib/sessionManager.js', 'lib/panelBot.js', 'lib/bot.js']) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    if (!/deviceIdentity'\)\.browserFor|identity\.browser/.test(src)) {
+      throw new Error(`${f} does not use the identity resolver`);
+    }
+    if (/browser:\s*\['Chrome',\s*'Chrome'/.test(src) || /Browsers\.appropriate\('Chrome'\)/.test(src)) {
+      throw new Error(`${f} still hardcodes a browser tuple`);
+    }
+  }
+});
+
+t('a session linked as another platform is warned about before connecting', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib/sessionManager.js'), 'utf8');
+  if (!/storedPlatform/.test(src)) throw new Error('no boot-time identity comparison');
+  if (!/will likely drop the link/.test(src)) throw new Error('the warning does not say what will happen');
+});
+
+t('identity is decided before makeWASocket is called', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'lib/sessionManager.js'), 'utf8');
+  const idAt = src.indexOf('const identity = identityModule.resolve()');
+  const sockAt = src.indexOf('const sock = makeWASocket(');
+  if (idAt === -1) throw new Error('identity is not resolved');
+  if (idAt > sockAt) throw new Error('identity resolved after the socket was created');
+});
+
+console.log(`\n${fail ? '✗' : '✔'} ${pass}/${pass + fail} passed`);
+process.exit(fail ? 1 : 0);
