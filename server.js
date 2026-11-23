@@ -80,6 +80,7 @@ app.use(express.static(path.join(__dirname, 'public')));
  * works normally without re-prompting on every poll.
  */
 const capacity = require('./lib/capacity');
+const access = require('./lib/access');
 const SITE_PASSWORD = process.env.SITE_PASSWORD || '';
 const TOKEN = SITE_PASSWORD
   ? require('crypto').createHash('sha256').update(`zynex:${SITE_PASSWORD}`).digest('hex')
@@ -137,6 +138,15 @@ app.get('/api/status', async (req, res) => {
     const star = await require('./lib/star').starCount();
     const sessions = await sessionManager.getAllSessions();
     const activeSessions = sessions.filter(s => s.status === 'connected').length;
+
+    // Only the bot a caller can prove they own, matched by the access code they
+    // hold. A password-holder with no code gets an empty list and the counts.
+    const claimed = String(req.body?.phoneNumber || req.query.phoneNumber || '')
+      .replace(/\D/g, '');
+    const code = String(req.body?.accessCode || req.query.accessCode || req.headers['x-access-code'] || '');
+    const owned = (authed && claimed && access.owns(claimed, code))
+      ? sessions.filter(s => String(s.phoneNumber) === claimed)
+      : [];
     res.json({
       botName: BOT_NAME,
       capacity: { ...capacity.compute(), ...capacity.pressure() },
@@ -146,19 +156,22 @@ app.get('/api/status', async (req, res) => {
       authorized: authed,
       activeSessions,
       totalPaired: sessions.length,
-      // Counts are public so the page can render stats; the records are not.
-      // Every field in them includes a phone number.
-      sessions: authed
-        ? sessions.slice(0, 20)
-        : sessions.slice(0, 20).map(s => ({
-            id: s.id,
-            status: s.status,
-            inMemory: s.inMemory,
-            messagesReceived: s.messagesReceived,
-            commandsExecuted: s.commandsExecuted,
-            createdAt: s.createdAt,
-            phoneNumber: '•••••••' + String(s.phoneNumber || '').slice(-2),
-          })),
+      /*
+       * ★ Knowing the panel password does NOT reveal the bots on it.
+       *
+       * It used to: the password holder got every full phone number and a
+       * Disconnect button next to each one. That is fine for one person running
+       * their own number, and unacceptable the moment a deployer resells access
+       * — one buyer could destroy another's bot.
+       *
+       * So the password buys the COUNTS (a host owner must know how full they
+       * are) and nothing else. A bot's own record is returned only to the
+       * holder of the access code issued when it was paired.
+       */
+      sessions: owned.map(s => ({
+        ...s,
+        owned: true,
+      })),
       // the page needs to know to ask for the password
       authHint: SITE_PASSWORD && !authed ? 'password required for full access' : undefined,
       // Repo + live star count, so the page's link is informative rather than a
@@ -223,6 +236,14 @@ app.post('/api/pair', async (req, res) => {
     // Create session
     const result = await sessionManager.createSession(phoneNumber);
 
+    /*
+     * The code that makes this bot theirs. Shown once, hashed at rest, never
+     * returned by any other endpoint. It is the difference between "you have the
+     * panel password so you own this server" and "you have the panel password so
+     * you own the bot you paired".
+     */
+    const accessCode = access.claim(phoneNumber);
+
     // Format the code with a dash for readability (e.g., "ABCD-EFGH")
     const prettyCode = formatPairCode(result.code);
 
@@ -234,6 +255,10 @@ app.post('/api/pair', async (req, res) => {
       rawCode: result.code,
       sessionId: result.sessionId,
       phoneNumber,
+      // shown once — there is no endpoint that can return it again
+      accessCode,
+      accessCodeNote: 'Save this. It is the only way to manage this bot from the panel. '
+        + 'You can always send .disconnect from WhatsApp.',
       expiresIn: PAIRING_CODE_TTL,
       instructions: [
         '1. Open WhatsApp on your phone',
@@ -251,13 +276,27 @@ app.post('/api/pair', async (req, res) => {
 // Disconnect a specific session by phone number
 app.post('/api/disconnect', requireAuth, async (req, res) => {
   try {
-    const { phoneNumber } = req.body;
+    const { phoneNumber, accessCode } = req.body;
     if (!phoneNumber) return res.status(400).json({ error: 'phoneNumber required' });
+
+    /*
+     * Disconnecting a bot you do not own would let one paying customer destroy
+     * another's. The panel password is not enough: it has to be the code issued
+     * when that specific bot was paired.
+     */
+    if (!access.owns(phoneNumber, accessCode)) {
+      return res.status(403).json({
+        error: 'That access code does not match this number. '
+          + 'You can only disconnect a bot you paired.',
+        needsAccessCode: true,
+      });
+    }
 
     const session = await prisma.botSession.findUnique({ where: { phoneNumber } });
     if (!session) return res.json({ ok: true, message: 'Already disconnected' });
 
     await sessionManager.removeSession(session.id);
+    access.release(phoneNumber);
     res.json({ ok: true, message: 'Disconnected. Session cleared.' });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -267,8 +306,13 @@ app.post('/api/disconnect', requireAuth, async (req, res) => {
 // Get details for a specific session (by phone number)
 app.get('/api/session/:phone', requireAuth, async (req, res) => {
   try {
+    const phone = String(req.params.phone).replace(/\D/g, '');
+    const code = String(req.body?.accessCode || req.query.accessCode || req.headers['x-access-code'] || '');
+    if (!access.owns(phone, code)) {
+      return res.status(403).json({ error: 'Access code required for this bot', needsAccessCode: true });
+    }
     const session = await prisma.botSession.findUnique({
-      where: { phoneNumber: req.params.phone },
+      where: { phoneNumber: phone },
     });
     if (!session) return res.status(404).json({ error: 'Session not found' });
     res.json({
@@ -278,6 +322,19 @@ app.get('/api/session/:phone', requireAuth, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+/*
+ * Unknown API paths must not fall through to the SPA.
+ *
+ * /api/get-creds/<id> — the endpoint an older self-hosting flow fetched session
+ * credentials from — does not exist on this server, and the catch-all below was
+ * answering it with the pairing page and HTTP 200. A fetcher expecting JSON got
+ * HTML, which is the kind of failure that looks like a wrong URL instead of a
+ * missing route.
+ */
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: `No such API route: ${req.method} ${req.path}` });
 });
 
 // SPA fallback

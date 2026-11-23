@@ -231,6 +231,16 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
       <div class="tm" id="tm">Expires in 60s</div>
     </div>
     <button class="copy" onclick="cp()">📋 Copy Code</button>
+    <div id="accessBox" style="display:none;margin:14px 0;padding:14px 16px;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.45);border-radius:12px;text-align:left">
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:6px">Your access code</div>
+      <div id="accessVal" style="font-size:30px;font-weight:800;letter-spacing:8px;color:#fff;font-family:ui-monospace,monospace"></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Save this now — it is shown <strong>once</strong>. It is the only way to see or
+        disconnect your bot from this panel. The site password is not enough, on purpose:
+        this server may be hosting other people too.
+      </div>
+      <button onclick="copyAccess()" style="margin-top:10px;background:rgba(124,58,237,0.25);border:1px solid rgba(124,58,237,0.6);color:#d8c7ff;font-weight:700;padding:9px 14px;border-radius:9px;cursor:pointer">📋 Copy access code</button>
+    </div>
     <h4 style="margin:16px 0 4px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:800">How to link</h4>
     <ol class="steps">
       <li>Open <strong>WhatsApp</strong> on your phone</li>
@@ -268,6 +278,19 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
       </div>
     </div>
     <div id="ses-list" style="display:flex;flex-direction:column;gap:10px;margin:6px 0 12px"></div>
+    <div id="access-store" style="display:none;margin:6px 0 12px">
+      <div id="hostSummary" style="font-size:13px;color:var(--muted);margin-bottom:10px"></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        Enter the access code you were given when you paired. It is the only way to see or disconnect your own bot from this panel — the site password alone cannot.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="storePhone" inputmode="numeric" placeholder="Your number (digits only)"
+          style="flex:1;min-width:180px;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:#fff;font-size:14px">
+        <input id="storeCode" inputmode="numeric" maxlength="6" placeholder="6-digit code"
+          style="width:130px;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:#fff;font-size:14px;letter-spacing:2px">
+        <button onclick="saveAccess()" style="background:var(--brand);border:0;color:#fff;font-weight:700;padding:11px 16px;border-radius:10px;cursor:pointer">Open</button>
+      </div>
+    </div>
     <button class="btn" onclick="loadSessions()" style="background:transparent;border:1px solid var(--line);color:var(--fg)">🔄 Refresh</button>
   </div>
 
@@ -349,6 +372,44 @@ function esc(s){
  * How many bots this host can hold. A deployer reselling access needs to know
  * before they hit the wall, not after every user drops.
  */
+/*
+ * The access code lives in localStorage on the pairer's own device. There are no
+ * accounts and no recovery: if it is lost, .disconnect from WhatsApp is the way
+ * back, and pairing again issues a fresh code.
+ */
+function accessCode(){ return localStorage.getItem('zynex_access') || ''; }
+
+/**
+ * Show the access code that came back with the pairing code, once.
+ *
+ * This is the only time the server ever sends it: it is stored hashed, and no
+ * endpoint can return it again. If the pairer closes this screen without
+ * saving it, .disconnect from WhatsApp is the remaining route — which is why
+ * the warning is not a toast.
+ */
+function showAccess(code, phone){
+  if(!code) return;
+  storeAccess(phone, code);
+  const box = document.getElementById('accessBox');
+  const val = document.getElementById('accessVal');
+  if(box && val){ val.textContent = code; box.style.display = 'block'; }
+}
+function copyAccess(){
+  const v = document.getElementById('accessVal');
+  if(!v || !v.textContent) return;
+  navigator.clipboard && navigator.clipboard.writeText(v.textContent);
+  showToast('\ud83d\udd11 Copied access code — keep it');
+}
+function storeAccess(phone, code){ localStorage.setItem('zynex_access', code); localStorage.setItem('zynex_ph', phone); }
+function saveAccess(){
+  const ph = (document.getElementById('storePhone').value||'').replace(/\D/g,'');
+  const code = (document.getElementById('storeCode').value||'').trim();
+  if(!ph || code.length !== 6){ showToast('❌ Need your number and the 6-digit code'); return; }
+  storeAccess(ph, code);
+  showToast('🔑 Saved — loading your bot');
+  loadSessions();
+}
+
 function paintCapacity(c){
   const el = document.getElementById('capLine');
   if(!el || !c) return;
@@ -422,7 +483,7 @@ function setLive(state){
 
 async function chk(){
   try{
-    const r=await fetch('/api/status',{headers:{'x-site-password':sitePw()}});
+    const r=await fetch('/api/status',{headers:{'x-site-password':sitePw(),'x-access-code':accessCode()}});
     const d=await r.json();
     setLive('online');
     document.getElementById('sa').textContent=d.activeSessions;
@@ -487,6 +548,8 @@ async function go(){
     document.getElementById('fc').style.display='none';
     document.getElementById('cc').style.display='block';
     document.getElementById('cd').textContent=d.code;
+    // the one and only time the server sends this — see showAccess()
+    showAccess(d.accessCode, ph);
     showToast('✅ Code generated — copy it now');
     let t=d.expiresIn;
     const tm=document.getElementById('tm');
@@ -551,8 +614,8 @@ async function dc(){
   try{
     r = await fetch('/api/disconnect',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-site-password':sitePw()},
-      body:JSON.stringify({phoneNumber:ph})
+      headers:{'Content-Type':'application/json','x-site-password':sitePw(),'x-access-code':accessCode()},
+      body:JSON.stringify({phoneNumber:ph, accessCode:accessCode()})
     });
   }catch(e){
     showToast('❌ Network error — session was NOT disconnected');
@@ -589,7 +652,7 @@ document.getElementById('ph').addEventListener('keydown',function(e){
 async function loadSessions(){
   let d;
   try{
-    d = await (await fetch('/api/status',{headers:{'x-site-password':sitePw()}})).json();
+    d = await (await fetch('/api/status',{headers:{'x-site-password':sitePw(),'x-access-code':accessCode()}})).json();
   }catch{ return; }
   // Repo + star count are public fields, so paint them before the auth gate
   // below returns early for a visitor who has not entered the password.
@@ -600,10 +663,27 @@ async function loadSessions(){
   const card = document.getElementById('ses-card');
   const list = document.getElementById('ses-list');
   const rows = (d.sessions||[]);
+  /*
+   * ★ The list is now "bots you own", not "bots on this server".
+   *
+   * The panel password used to hand you every paired number and a Disconnect
+   * button beside each one. A deployer reselling access cannot have that: one
+   * customer could delete another's bot. The password holder gets the counts
+   * (see paintCapacity) and nothing more.
+   */
+  const store = document.getElementById('access-store');
+  const summary = document.getElementById('hostSummary');
+  if(summary){
+    summary.innerHTML = 'This server hosts <strong>'+ (d.totalPaired||0) +'</strong> bot'
+      + ((d.totalPaired||0)===1?'':'s') + ' · <strong>'+(d.activeSessions||0)+'</strong> online.'
+      + ' You can open the one you paired; other people\'s bots stay private.';
+  }
   if(rows.length === 0){
     card.style.display = 'none';
+    if(store) store.style.display = 'block';   // offer the code box instead
     return;
   }
+  if(store) store.style.display = 'none';
   card.style.display = 'block';
   list.innerHTML = '';
   rows.forEach(s=>{
@@ -632,8 +712,8 @@ async function disconnectNumber(ph){
   try{
     r = await fetch('/api/disconnect',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-site-password':sitePw()},
-      body:JSON.stringify({phoneNumber:ph})
+      headers:{'Content-Type':'application/json','x-site-password':sitePw(),'x-access-code':accessCode()},
+      body:JSON.stringify({phoneNumber:ph, accessCode:accessCode()})
     });
   }catch{ showToast('❌ Network error — not disconnected'); return; }
   if(!r.ok){
