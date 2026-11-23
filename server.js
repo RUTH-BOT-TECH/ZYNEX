@@ -144,9 +144,19 @@ app.get('/api/status', async (req, res) => {
     const claimed = String(req.body?.phoneNumber || req.query.phoneNumber || '')
       .replace(/\D/g, '');
     const code = String(req.body?.accessCode || req.query.accessCode || req.headers['x-access-code'] || '');
-    const owned = (authed && claimed && access.owns(claimed, code))
+    const ownsClaimed = authed && claimed && access.owns(claimed, code);
+    const owned = ownsClaimed
       ? sessions.filter(s => String(s.phoneNumber) === claimed)
       : [];
+    /*
+     * A bot paired before access codes existed has no claim, and its owner has
+     * no code to type. Re-pairing the same number issues a fresh code without
+     * disturbing the running session, so point them there rather than showing a
+     * Disconnect button that can only return 403.
+     */
+    const claimable = authed && claimed && !ownsClaimed && !access.isClaimed(claimed)
+      ? sessions.some(s => String(s.phoneNumber) === claimed)
+      : false;
     res.json({
       botName: BOT_NAME,
       capacity: { ...capacity.compute(), ...capacity.pressure() },
@@ -172,6 +182,7 @@ app.get('/api/status', async (req, res) => {
         ...s,
         owned: true,
       })),
+      canClaim: claimable,
       // the page needs to know to ask for the password
       authHint: SITE_PASSWORD && !authed ? 'password required for full access' : undefined,
       // Repo + live star count, so the page's link is informative rather than a

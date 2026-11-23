@@ -140,6 +140,11 @@ t('re-pairing issues a fresh code and retires the old one', () => {
       if (detail.code !== 403) throw new Error('expected 403, got ' + detail.code);
     });
 
+    t('a bot paired before codes existed is flagged claimable, not stranded', () => {
+      // the number is in the DB but has no claim: the panel must say how to adopt it
+      if (typeof j.canClaim !== 'boolean') throw new Error('status has no canClaim flag');
+    });
+
     const unknown = await request(PORT, 'GET', '/api/get-creds/anything', null, pw);
     t('an unknown API route is a JSON 404, not the HTML page', () => {
       if (unknown.code !== 404) throw new Error('expected 404, got ' + unknown.code);

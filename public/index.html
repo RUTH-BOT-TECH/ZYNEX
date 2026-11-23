@@ -681,6 +681,12 @@ async function loadSessions(){
   if(rows.length === 0){
     card.style.display = 'none';
     if(store) store.style.display = 'block';   // offer the code box instead
+    // a bot paired before access codes existed: tell them how to adopt it
+    if(summary && d.canClaim){
+      summary.innerHTML = '<strong style="color:#f5f5f7">This number is already paired</strong> '
+        + 'but was set up before access codes existed. Pair it again below with the same '
+        + 'number — the running bot keeps going and you get a code to manage it.';
+    }
     return;
   }
   if(store) store.style.display = 'none';
