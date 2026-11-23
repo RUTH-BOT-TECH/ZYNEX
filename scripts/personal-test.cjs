@@ -147,6 +147,34 @@ t('a corrupt file warns instead of silently resetting', () => {
   assert.ok(/unreadable/i.test(said), 'corrupt file was swallowed without a word');
 });
 
+t('reminders are delivered from the socket that actually runs', () => {
+  /**
+   * This is the assertion that would have caught the original mistake.
+   *
+   * server.js runs PANEL_MODE=0 -> sessionManager.js. lib/bot.js has its own
+   * makeWASocket but is never started in production, so a ticker wired there
+   * compiles, reviews cleanly, and never fires.
+   */
+  const server = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
+  const usesPanel = /PANEL_MODE\s*===\s*'0'/.test(server)
+    && /require\('\.\/lib\/sessionManager'\)|start\(\)/.test(server);
+  assert.ok(usesPanel, 'server.js entry logic changed — re-check which socket is live');
+
+  const live = fs.readFileSync(path.join(ROOT, 'lib/sessionManager.js'), 'utf8');
+  assert.ok(/startReminderTicker/.test(live), 'reminder ticker is not wired into the live socket path');
+  assert.ok(/sock\.sendMessage/.test(live), 'no delivery call on the live path');
+
+  const dead = fs.readFileSync(path.join(ROOT, 'lib/bot.js'), 'utf8');
+  const stripped = dead.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(!/startReminderTicker/.test(stripped), 'ticker was wired into bot.js, which never runs in production');
+});
+
+t('the live path guards against a stale socket closure', () => {
+  const live = fs.readFileSync(path.join(ROOT, 'lib/sessionManager.js'), 'utf8');
+  assert.ok(/catch\s*\(e\)\s*\{[^}]*REMIND/i.test(live) || /\[REMIND\] could not start/.test(live),
+    'a failure to start the ticker would be silent');
+});
+
 t('every claimed command replies, never silence', async () => {
   for (const name of engine.extraNames) {
     const out = await run(name, '');
