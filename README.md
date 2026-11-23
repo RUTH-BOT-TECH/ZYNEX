@@ -42,7 +42,7 @@ Deploy with `npm run deploy` — it pushes to GitHub and Railway together.
 
 ## Commands
 
-`2,139 names · 1,294 working · 60.5%` — the rest answer with an honest refusal and
+`2,202 names · 1,129 working · 51.3%` — the rest answer with an honest refusal and
 name a command that does work. Run `.menu` in chat for the live list.
 
 | | |
