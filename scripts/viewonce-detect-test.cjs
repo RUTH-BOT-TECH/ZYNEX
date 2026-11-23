@@ -118,10 +118,18 @@ t('.vv explains the route that DOES work, not just that it failed', () => {
   assert.ok(/quote is the only route/i.test(src), 'must say where the media comes from');
 });
 
-t('capture refuses a stub instead of storing junk', () => {
+t('an empty stub stores nothing, and every arrival is still logged', () => {
+  /*
+   * This used to assert a `cacheable` pre-check existed. That check was the bug:
+   * view-once media arrives WITHOUT a visible key, so the pre-check skipped the
+   * one case worth capturing. What matters is the outcome — an empty stub must
+   * produce no junk entry — which is now tested directly in
+   * scripts/vv-capture-test.cjs ('a genuinely empty stub fails quietly').
+   */
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
-  assert.ok(/cacheable/.test(src), 'no cacheability check before download');
   assert.ok(/\[VV-ARRIVE\]/.test(src), 'view-once arrivals must be logged to be diagnosable');
+  assert.ok(!/if \(cacheable && \(await precacheMedia/.test(src),
+    'capture is gated on a visible key again — that skips keyless view-once media');
 });
 
 console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);
