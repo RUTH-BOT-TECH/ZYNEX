@@ -18,7 +18,7 @@
  * installed app that opens to a dinosaur feels broken.
  */
 
-const VERSION = 'zynex-v1';
+const VERSION = 'zynex-v2';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 
