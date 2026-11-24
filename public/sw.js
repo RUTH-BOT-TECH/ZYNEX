@@ -18,7 +18,7 @@
  * installed app that opens to a dinosaur feels broken.
  */
 
-const VERSION = 'zynex-v2';
+const VERSION = 'zynex-v3';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 
@@ -26,10 +26,10 @@ const PRECACHE = [
   '/',
   '/manifest.json',
   '/offline.html',
-  '/assets/icon-192.png',
-  '/assets/icon-512.png',
-  '/assets/apple-touch-icon.png',
-  '/assets/favicon-32.png',
+  '/assets/app-icons/icon-192.png',
+  '/assets/app-icons/icon-512.png',
+  '/assets/app-icons/apple-touch-icon.png',
+  '/assets/app-icons/favicon-32.png',
 ];
 
 self.addEventListener('install', (event) => {

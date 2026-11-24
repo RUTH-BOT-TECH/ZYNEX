@@ -2,7 +2,7 @@
   "name": "ZYNEX-MD",
   "short_name": "ZYNEX-MD",
   "description": "Pair your WhatsApp number and manage your bot from your phone.",
-  "start_url": "/?source=app",
+  "start_url": "/?source=app&v=3",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -16,19 +16,19 @@
   "dir": "ltr",
   "icons": [
     {
-      "src": "/assets/icon-192.png",
+      "src": "/assets/app-icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/icon-512.png",
+      "src": "/assets/app-icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/icon-maskable-512.png",
+      "src": "/assets/app-icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -40,11 +40,12 @@
       "url": "/?action=pair",
       "icons": [
         {
-          "src": "/assets/icon-192.png",
+          "src": "/assets/app-icons/icon-192.png",
           "sizes": "192x192"
         }
       ],
       "name": "Pair a number"
     }
-  ]
+  ],
+  "id": "/?app=zynex"
 }

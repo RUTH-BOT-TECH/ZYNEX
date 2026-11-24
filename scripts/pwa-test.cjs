@@ -66,7 +66,7 @@ t('every declared icon exists and is really a PNG of the right size', async () =
 
   await ta('the maskable icon keeps its content inside the safe zone', async () => {
     // content in the outer 10% of a maskable icon gets cut off by the mask
-    const file = path.join(PUB, 'assets/icon-maskable-512.png');
+    const file = path.join(PUB, 'assets/app-icons/icon-maskable-512.png');
     const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const S = info.width;
     const margin = Math.floor(S * 0.08);
@@ -85,7 +85,7 @@ t('every declared icon exists and is really a PNG of the right size', async () =
   });
 
   await ta('an apple-touch-icon exists for iOS', async () => {
-    const f = path.join(PUB, 'assets/apple-touch-icon.png');
+    const f = path.join(PUB, 'assets/app-icons/apple-touch-icon.png');
     if (!fs.existsSync(f)) throw new Error('missing — iOS falls back to a screenshot');
     const m = await sharp(f).metadata();
     if (m.width !== 180) throw new Error(`should be 180x180, is ${m.width}`);
@@ -177,8 +177,8 @@ t('every declared icon exists and is really a PNG of the right size', async () =
     });
 
     await ta('every precached URL returns 200', async () => {
-      for (const u of ['/', '/manifest.json', '/offline.html', '/assets/icon-192.png',
-                       '/assets/icon-512.png', '/assets/apple-touch-icon.png', '/assets/favicon-32.png']) {
+      for (const u of ['/', '/manifest.json', '/offline.html', '/assets/app-icons/icon-192.png',
+                       '/assets/app-icons/icon-512.png', '/assets/app-icons/apple-touch-icon.png', '/assets/app-icons/favicon-32.png']) {
         const r = await get(u);
         if (r.code !== 200) throw new Error(`${u} -> ${r.code} (install would fail)`);
       }

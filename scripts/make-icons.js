@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 
 const OUT = path.resolve(__dirname, '../public/assets');
+const ICONS = path.resolve(__dirname, '../public/assets/app-icons');
 const SRC = path.join(OUT, 'zynex-logo.png');   // the artwork as it always was
 
 const sizes = [
@@ -29,6 +30,8 @@ const sizes = [
   ['favicon-16.png', 16],
 ];
 
+require('fs').mkdirSync(ICONS, { recursive: true });
+
 (async () => {
   const meta = await sharp(SRC).metadata();
   if (!meta.width) throw new Error('zynex-logo.png is unreadable');
@@ -38,8 +41,8 @@ const sizes = [
     await sharp(SRC)
       .resize(size, size, { fit: 'cover', position: 'centre' })
       .png()
-      .toFile(path.join(OUT, name));
-    console.log(`${name.padEnd(24)} ${size}x${size}  ${(fs.statSync(path.join(OUT, name)).size / 1024).toFixed(1)} KB`);
+      .toFile(path.join(ICONS, name));
+    console.log(`${name.padEnd(24)} ${size}x${size}  ${(fs.statSync(path.join(ICONS, name)).size / 1024).toFixed(1)} KB`);
   }
 
   // ── maskable: artwork shrunk inside the safe zone ────────────────────────
@@ -58,6 +61,6 @@ const sizes = [
   })
     .composite([{ input: art, gravity: 'centre' }])
     .png()
-    .toFile(path.join(OUT, 'icon-maskable-512.png'));
-  console.log(`icon-maskable-512.png    512x512  ${(fs.statSync(path.join(OUT, 'icon-maskable-512.png')).size / 1024).toFixed(1)} KB`);
+    .toFile(path.join(ICONS, 'icon-maskable-512.png'));
+  console.log(`icon-maskable-512.png    512x512  ${(fs.statSync(path.join(ICONS, 'icon-maskable-512.png')).size / 1024).toFixed(1)} KB`);
 })();
