@@ -1,4 +1,5 @@
 const games = require('../lib/engines/games');
+games._internals.reset();   // no stale games from an earlier run
 const fs = require('fs');
 const path = require('path');
 const DATA = path.join(__dirname, '..', 'data');
@@ -78,7 +79,7 @@ const ok=(n,c,d='')=>{if(c){pass++;console.log('  ✓ '+n);}else{fail.push(n+' :
   ok('start sends PNG', isPng());
   fs.writeFileSync('/tmp/zynex-i-sudoku.png', last().image);
   await new Promise(r=>setTimeout(r,450));
-  const st=JSON.parse(fs.readFileSync(path.join(DATA, 'games.json'),'utf8'));
+  const st=JSON.parse(fs.readFileSync(games._internals.STATE_FILE,'utf8'));
   const su=st.chats[CHAT].sudoku;
   let e=null; for(let r=0;r<9&&!e;r++)for(let c=0;c<9;c++)if(!su.puzzle[r][c]){e=[r,c];break;}
   sent=[]; await games.execute(mk('fill',[String(e[0]),String(e[1]),String(su.solution[e[0]][e[1]])]));
@@ -99,7 +100,7 @@ const ok=(n,c,d='')=>{if(c){pass++;console.log('  ✓ '+n);}else{fail.push(n+' :
   console.log('\n── Wordle plays with images ──');
   sent=[]; await games.execute(mk('wordle'));
   await new Promise(r=>setTimeout(r,450));
-  const st2=JSON.parse(fs.readFileSync(path.join(DATA, 'games.json'),'utf8'));
+  const st2=JSON.parse(fs.readFileSync(games._internals.STATE_FILE,'utf8'));
   const secret=st2.chats[CHAT].wordle.word;
   sent=[]; await ft('zzzzz');
   ok('wrong guess sends PNG', isPng());
@@ -112,7 +113,7 @@ const ok=(n,c,d='')=>{if(c){pass++;console.log('  ✓ '+n);}else{fail.push(n+' :
   sent=[]; await games.execute(mk('hangman'));
   ok('start sends PNG', isPng());
   await new Promise(r=>setTimeout(r,450));
-  const st3=JSON.parse(fs.readFileSync(path.join(DATA, 'games.json'),'utf8'));
+  const st3=JSON.parse(fs.readFileSync(games._internals.STATE_FILE,'utf8'));
   const hw=st3.chats[CHAT].hangman.word;
   sent=[]; await ft('q');
   ok('letter guess sends PNG', isPng());

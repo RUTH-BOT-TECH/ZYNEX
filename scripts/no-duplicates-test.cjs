@@ -1,16 +1,18 @@
 /**
  * scripts/no-duplicates-test.cjs — every command name must have one clear owner.
  *
- * Why this exists: `rainbow` was claimed by both the text engine (as a colour
- * style) and the overlay engine (as an image effect). The registry is
- * first-come, so the winner was decided by load order — and the text version
- * threw "Cannot read properties of undefined" while the overlay version worked.
- * A name claimed twice is a coin flip nobody tests.
- *
+ * Why this exists: a name claimed twice is a coin flip decided by load order.
  * Overlaps between *aliases* are allowed when both sides are real
  * implementations, because the loser is still reachable under its own name. An
  * overlap where the loser is a stub, or where the two differ in what they need
  * (text vs image), is a bug.
+ *
+ * `rainbow` is the counterexample worth writing down. It used to be listed
+ * here as a "photo overlay effect", but overlay.js never claimed it: the
+ * renderer is a TEXT LOGO in lib/logostyles.js (`.rainbow <words>`). Overlay
+ * effects need a quoted photo; rainbow needs a word. Forbidding the text
+ * engine from claiming it left `.rainbow` as a dead "isn't wired up yet"
+ * stub while its renderer was sitting right there.
  */
 
 const assert = require('assert');
@@ -67,12 +69,24 @@ t('no command name is claimed by two engines', () => {
   assert.deepStrictEqual(bad.map(([n, o]) => `${n}: ${o.join(' + ')}`), []);
 });
 
-t('the text engine does not claim image effects', () => {
+t('the text engine does not claim photo-overlay effects', () => {
   const text = engines.find((e) => e.file === 'text.js');
   assert.ok(text, 'text engine not found');
-  for (const n of ['rainbow', 'wasted', 'jail', 'triggered', 'rip', 'trash']) {
-    assert.ok(!text.engine.match(n), `text engine claims "${n}", which is an image effect`);
+  // Every one of these needs a quoted PHOTO (overlay.js owns them). rainbow
+  // is a text logo drawn from a word, so it deliberately is not in this list.
+  for (const n of ['wasted', 'jail', 'triggered', 'rip', 'trash', 'facepalm', 'beautiful', 'jokeoverhead']) {
+    assert.ok(!text.engine.match(n), `text engine claims "${n}", which needs a quoted photo`);
   }
+});
+
+t('rainbow has exactly one owner, and it is not a stub', () => {
+  const text = engines.find((e) => e.file === 'text.js');
+  const ov = engines.find((e) => e.file === 'overlay.js');
+  assert.ok(text.engine.match('rainbow'), 'text engine lost rainbow — the command is a dead stub again');
+  assert.ok(!ov.engine.match('rainbow'), 'overlay would demand a quoted photo for a text logo');
+  const registry = require(path.join(ROOT, 'lib/registry'));
+  const entry = registry.get('rainbow');
+  assert.notStrictEqual(entry.source, 'fallback', '.rainbow resolves to a stub');
 });
 
 t('the overlay engine does not claim text styles or existing commands', () => {

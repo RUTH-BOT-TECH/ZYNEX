@@ -1,4 +1,5 @@
 const games = require('../lib/engines/games');
+games._internals.reset();   // no stale games from an earlier run
 const fs = require('fs');
 const path = require('path');
 const DATA = path.join(__dirname, '..', 'data');

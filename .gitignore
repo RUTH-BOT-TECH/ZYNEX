@@ -6,7 +6,11 @@ auth_state/
 tmp/
 prisma/*.db
 .DS_Store
-data/
+# Runtime state (games.json, economy.json …) is generated, but the vendored
+# quiz banks are SOURCE: without them every quiz answers "bank is empty".
+data/*
+!data/quiz/
+!data/quiz/*.json
 sessions.json
 
 # The standalone yt-dlp binary is fetched by scripts/fetch-ytdlp.cjs at install

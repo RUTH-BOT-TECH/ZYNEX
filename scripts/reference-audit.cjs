@@ -27,7 +27,7 @@ const path = require('path');
 process.env.SILENT = '1';
 process.env.CRYPTO_SECRET = 'audit';
 
-const ROOT = '/home/user/zynex-md';
+const ROOT = path.resolve(__dirname, '..');
 const cryptoI = require(path.join(ROOT, 'lib/engines/crypto.js'))._internal;
 const overlayI = require(path.join(ROOT, 'lib/engines/overlay.js'))._internal;
 const personalI = require(path.join(ROOT, 'lib/engines/personal.js'))._internal;

@@ -1,4 +1,5 @@
 const games = require('../lib/engines/games');
+games._internals.reset();   // no stale games from an earlier run
 const path = require('path');
 const DATA = path.join(__dirname, '..', 'data');
 const sent = [];
@@ -12,7 +13,7 @@ function ctx(command, args = [], extra = {}) {
 const ft = (text) => games.handleFreeText({ text, from: CHAT, sender: SENDER, msg:{key:{}}, sock: ctx('x').sock, reply: async t => { sent.push({text:String(t)}); return {}; } });
 let pass=0, fail=[];
 const wait = () => new Promise(r=>setTimeout(r,450));
-const rd = async () => { await wait(); return JSON.parse(require('fs').readFileSync(path.join(DATA, 'games.json'), 'utf8')); };
+const rd = async () => { await wait(); return JSON.parse(require('fs').readFileSync(games._internals.STATE_FILE, 'utf8')); };
 const ok=(n,c,d='')=>{ if(c){pass++;console.log('  ✓ '+n);} else {fail.push(n+' :: '+d);console.log('  ✗ '+n+'  '+d);} };
 const txt=()=>String((sent[sent.length-1]||{}).text||(sent[sent.length-1]||{}).caption||'');
 
