@@ -154,7 +154,18 @@ async function run(cmdName, args = []) {
   }
   {
     const r = await run('ytmp4', ['test']);
-    check('.ytmp4 answers honestly (no video API)', r.ok && /unavailable|Cobalt/i.test(r.output), r.reason);
+    /*
+     * ★ This used to demand the word "unavailable", because .ytmp4 genuinely
+     * had no video path and said so. yt-dlp now resolves real videos (verified:
+     * a 30:10 / 186 MB 480p file), so the old assertion failed against working
+     * code and masked a pass as a defect.
+     *
+     * What still has to be true: it either returns a real video, or it explains
+     * why not. Silent nothing is the only unacceptable outcome.
+     */
+    const realVideo = /⏱️\s*\d+:\d\d/.test(r.output) && /💾/.test(r.output);
+    const honestNo = /unavailable|Cobalt|could not|no video/i.test(r.output);
+    check('.ytmp4 returns a real video or says why not', r.ok && (realVideo || honestNo), r.reason || r.output.slice(0, 160));
   }
   {
     const r = await run('apk', ['test']);
