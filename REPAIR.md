@@ -100,3 +100,39 @@ node server.js               # boots clean, waits for SESSION_ID (panel mode)
 - Pair a **fresh** session if you change `DEVICE_IDENTITY` (see §1).
 - Supabase and Vercel were connected in this conversation but this project uses a
   local JSON session store and ships Railway/Render/Vercel configs — no DB migration needed.
+
+---
+
+## 5. Update 2 — `.play` no longer falls back to 30 seconds
+
+Asked why `.play` kept serving a 30-second clip. Researched the 2026 YouTube
+bot wall and reproduced it: `Sign in to confirm you're not a bot` from the
+server's IP, so the Deezer/iTunes `preview` endpoints (30 s **by design**) were
+the only things left.
+
+**What shipped**
+
+- `lib/ytdlp.js` now tries **YouTube → SoundCloud (`scsearch8`, skipping any
+  result under 60 s) → 30 s previews**. Verified live on the same blocked IP:
+  a 322.6 s result downloaded as a **5:23 / 4.9 MB MP3 in 12.9 s**, zero cookies.
+- Auth knobs are env-driven and documented in `.env.example` / `PLAY.md`:
+  `YTDLP_COOKIES_B64` (base64 Netscape cookies → `0600` temp file, secret never
+  on argv), `YTDLP_COOKIES_FILE`, `YTDLP_COOKIES`, `YTDLP_POT_PROVIDER_URL`,
+  `YTDLP_PLUGIN_DIR`, `YTDLP_PLAYER_CLIENT`, `YTDLP_PROXY`, `YTDLP_JS_RUNTIME`,
+  `-4` by default, `YTDLP_EXTRA_ARGS`.
+- Automatic JS runtime declaration for EJS challenges (`--js-runtimes node`
+  when Deno/Bun are absent) — this host previously logged `JS runtimes: none`.
+- `YTDLP_AUDIO_SOURCE=soundcloud` skips the blocked source entirely;
+  `YTDLP_SOUNDCLOUD_FALLBACK=0` disables the fallback.
+- `.play` captions now name the winning source (`via SoundCloud (full track)`)
+  and a bot gate produces an actionable hint instead of a silent 30 s clip.
+- `npm run ytdlp:update` force-refreshes the standalone binary (postinstall
+  intentionally keeps an existing one, which is wrong when YouTube breaks an
+  old extractor).
+- `scripts/play-sources-test.cjs` — 17 checks, wired into `test:all`, including
+  a live full-length resolution with no cookies.
+
+`PLAY.md` has the operator's step-by-step: update binary → JS runtime/IPv4 →
+cookies from a spare account in a private window → PO-token provider →
+residential proxy / cleaner IP, plus the deployment caveat (Vercel serverless
+cannot hold a Baileys socket or a 20 MB download; use Railway/Render/VPS).

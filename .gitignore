@@ -16,3 +16,8 @@ sessions.json
 # The standalone yt-dlp binary is fetched by scripts/fetch-ytdlp.cjs at install
 # time. It is 41 MB and platform-specific, so it is never committed.
 vendor/
+
+# YouTube session cookies are credentials. Never commit them.
+cookies.txt
+*.cookies.txt
+*.cookies
