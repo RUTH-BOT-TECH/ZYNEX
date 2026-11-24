@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="30" viewBox="0 0 640 30" role="img">
+<defs>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#7c3aed" stop-opacity="0.9"/>
+    <stop offset="0.5" stop-color="#22c55e" stop-opacity="0.9"/>
+    <stop offset="1" stop-color="#7c3aed" stop-opacity="0.9"/>
+  </linearGradient>
+  <filter id="s"><feGaussianBlur stdDeviation="3"/></filter>
+</defs>
+<rect x="2" y="2" width="636" height="26" rx="13" fill="#100a1d" stroke="url(#edge)" stroke-width="1.5"/>
+<rect x="8" y="26" width="624" height="2" fill="url(#edge)" filter="url(#s)" opacity="0.6"/>
+<circle cx="28" cy="15" r="6" fill="#22c55e">
+  <animate attributeName="opacity" values="1;0.35;1" dur="2s" repeatCount="indefinite"/>
+</circle>
+<text x="46" y="20" font-family="Verdana,DejaVu Sans,Arial,sans-serif" font-size="12"
+      font-weight="bold" fill="#86efac" letter-spacing="2">PAIRING SITE: LIVE</text>
+<text x="620" y="20" text-anchor="end" font-family="Verdana,DejaVu Sans,Arial,sans-serif"
+      font-size="10" fill="#a99bc8" letter-spacing="1">HEALTH CHECK: /HEALTH</text>
+</svg>
