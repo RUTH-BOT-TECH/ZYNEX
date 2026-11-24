@@ -67,12 +67,13 @@ const kindOf = (p) => p && ['image', 'video', 'audio', 'document'].find((k) => p
     from: '123@g.us', reply: async (t) => fail.push(String(t)),
     download: async () => { throw new Error('media expired'); }, dbSession: {}, args: [],
   });
-  // The requirement is "never silent, never pretend it worked". Which specific
-  // message is correct depends on the failure: this fixture is `imageMessage: {}`
-  // — a media node with no key and no url — for which "nothing left to unlock"
-  // is the accurate answer, not a transport complaint.
+  // "Never silent, never pretend it worked". This fixture is `imageMessage: {}`
+  // — a keyless stand-in — so the honest answer is now "queued, waiting for the
+  // media" (⏳) rather than the old, false "nothing can ever recover it" (❌).
+  // A terminal ❌ is still acceptable; silence or a fake unlock is not.
   ok('.vv reports a failure instead of going quiet',
-    fail.length > 0 && /❌/.test(fail[0]) && !/^🔓/.test(fail[0]),
+    fail.length > 0 && /[❌⏳]/.test(fail[0]) && !/^🔓/.test(fail[0]) &&
+      /media|queued|wait/i.test(fail[0]),
     `silent=${fail.length === 0} txt=${String(fail[0]).slice(0, 50)}`);
 
   console.log('\n\u2550\u2550 private mode \u2550\u2550\n');

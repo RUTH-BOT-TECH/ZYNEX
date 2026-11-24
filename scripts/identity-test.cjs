@@ -24,12 +24,15 @@ t('the default identity is unchanged, so no live session breaks', () => {
   assert.strictEqual(r.platform, P.CHROME);
 });
 
-t('android presents ANDROID_PHONE as browser[0] — the bug that broke pairing', () => {
+t('android presents a genuine ANDROID companion (Baileys rc14 reads browser[1])', () => {
   const r = id.resolve('android');
-  // getPlatformId reads browser[0].toUpperCase() as a PlatformType key.
-  assert.strictEqual(r.browser[0], 'ANDROID_PHONE', 'browser[0] must be a PlatformType token');
+  // rc14: getUserAgent() and getPlatformType() BOTH read browser[1].
+  // `Browsers.android('Chrome')` returns ['Chrome','Android',''] — that is
+  // the shape WhatsApp recognises as an Android companion.
+  assert.strictEqual(r.browser[1], 'Android', 'browser[1] must say Android');
+  assert.ok(r.browser[1].toLowerCase().includes('android'), 'the socket would still log in as WEB');
   assert.strictEqual(r.platform, P.ANDROID_PHONE);
-  assert.ok(P[r.browser[0]] !== undefined, 'browser[0] is not a PlatformType key');
+  assert.strictEqual(r.label, 'Android');
 });
 
 t("the wrong shape ('Chrome' first) would silently resolve to CHROME", () => {
@@ -42,13 +45,42 @@ t("the wrong shape ('Chrome' first) would silently resolve to CHROME", () => {
   assert.strictEqual(P.ANDROID_PHONE, 16);
 });
 
+/** getPlatformType() in Baileys rc14 — reads browser[1], not browser[0]. */
+const platformFromBrowser = (b) => {
+  const u = String(b).toUpperCase();
+  if (u === 'ANDROID') return P.ANDROID_PHONE;
+  return P[u] || P.CHROME;
+};
+
 t('every preset resolves to a real platform', () => {
   for (const name of Object.keys(id.PRESETS)) {
     const r = id.resolve(name);
-    // getPlatformId uppercases browser[0] before the lookup
-    assert.strictEqual(r.platform, P[String(r.browser[0]).toUpperCase()], `${name}: browser[0] does not map to its platform`);
+    assert.strictEqual(r.platform, platformFromBrowser(r.browser[1]), `${name}: browser[1] does not map to its platform`);
     assert.strictEqual(r.note, null, `${name} produced a note: ${r.note}`);
   }
+});
+
+t('an already-linked Android session is auto-matched without any env var', () => {
+  const r = id.resolveForSession(undefined, 'android');
+  assert.strictEqual(r.name, 'android', 'the linked platform was ignored');
+  assert.strictEqual(r.browser[1], 'Android');
+  assert.strictEqual(r.matched, 'android');
+  assert.strictEqual(r.note, null, 'a healthy match must not emit a warning');
+});
+
+t('an explicit DEVICE_IDENTITY still wins over the stored platform', () => {
+  const r = id.resolveForSession('chrome', 'android');
+  assert.strictEqual(r.name, 'chrome');
+  assert.ok(!r.matched, 'explicit config must not be silently overridden');
+});
+
+t('platformMatches compares names, not a name against a numeric platform id', () => {
+  // The old boot warning did String('android') !== String(16) and ALWAYS fired.
+  assert.strictEqual(id.platformMatches('android', id.resolve('android')), true);
+  assert.strictEqual(id.platformMatches('ANDROID_PHONE', id.resolve('android')), true);
+  assert.strictEqual(id.platformMatches(16, id.resolve('android')), true);
+  assert.strictEqual(id.platformMatches('android', id.resolve('chrome')), false);
+  assert.strictEqual(id.platformMatches(undefined, id.resolve('chrome')), true, 'unknown creds must not cry wolf');
 });
 
 t('an unknown value falls back instead of refusing to boot', () => {
@@ -82,10 +114,17 @@ t('a session linked as another platform is warned about before connecting', () =
 
 t('identity is decided before makeWASocket is called', () => {
   const src = fs.readFileSync(path.join(ROOT, 'lib/sessionManager.js'), 'utf8');
-  const idAt = src.indexOf('const identity = identityModule.resolve()');
+  const idAt = src.indexOf('const identity = identityModule.resolveForSession(');
   const sockAt = src.indexOf('const sock = makeWASocket(');
-  if (idAt === -1) throw new Error('identity is not resolved');
+  if (idAt === -1) throw new Error('identity is not resolved for the session');
   if (idAt > sockAt) throw new Error('identity resolved after the socket was created');
+});
+
+t('the other two socket paths also pass the stored platform', () => {
+  for (const f of ['lib/panelBot.js', 'lib/bot.js']) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    assert.ok(/browserFor\(undefined,\s*state\.creds\?\.platform\)/.test(src), `${f} ignores creds.platform`);
+  }
 });
 
 console.log(`\n${fail ? '✗' : '✔'} ${pass}/${pass + fail} passed`);

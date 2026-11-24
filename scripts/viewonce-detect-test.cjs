@@ -50,18 +50,20 @@ t('Baileys 7 exposes an android identity', () => {
  */
 t('the browser identity resolves to a real platform type', () => {
   /*
-   * The tuple moved into lib/deviceIdentity.js so all three socket paths agree.
-   * What still matters is the original rule: browser[0] must be a PlatformType
-   * key, or Baileys silently pairs as CHROME while the OS field says otherwise.
+   * Baileys 7.0.0-rc14 reads browser[1] (getUserAgent + getPlatformType),
+   * NOT browser[0]. `getPlatformType('ANDROID')` special-cases ANDROID_PHONE.
+   * Putting ANDROID_PHONE in browser[0] while browser[1] said 'Chrome' was
+   * the second half of the live `.vv` bug: the socket still logged in as WEB.
    */
   const id = require('../lib/deviceIdentity');
-  const { proto } = require('@whiskeysockets/baileys');
+  const P = baileys.proto.DeviceProps.PlatformType;
   for (const name of Object.keys(id.PRESETS)) {
     const r = id.resolve(name);
-    const platform = proto.DeviceProps.PlatformType[String(r.browser[0]).toUpperCase()];
+    const u = String(r.browser[1]).toUpperCase();
+    const platform = u === 'ANDROID' ? P.ANDROID_PHONE : P[u];
     assert.ok(platform !== undefined,
-      `${name}: '${r.browser[0]}' is not a PlatformType — it silently falls back to CHROME`);
-    assert.strictEqual(platform, r.platform, `${name}: platform disagrees with browser[0]`);
+      `${name}: '${r.browser[1]}' is not a PlatformType — it silently falls back to CHROME`);
+    assert.strictEqual(platform, r.platform, `${name}: platform disagrees with browser[1]`);
   }
 });
 
@@ -108,14 +110,17 @@ t('a placeholder stub is not mistaken for media', () => {
 });
 
 t('.vv explains the route that DOES work, not just that it failed', () => {
-  // Researched answer (juniorkrz/stickerbot #88): a view-once never reaches a
-  // companion device, but a reply sent from the phone that received it carries
-  // the full media node in contextInfo.quotedMessage. Telling the user that is
-  // more useful than any error message.
+  // Nov 2026: the working route is the DEVICE IDENTITY, not a phone-supplied
+  // quote. A WEB companion gets a view_once_unavailable_fanout stand-in; an
+  // ANDROID companion receives the media itself. Both own and others' items
+  // are unlocked the same way, and the request is queued until media arrives.
   const src = fs.readFileSync(path.join(ROOT, 'lib/commands/vv.js'), 'utf8');
-  assert.ok(/Reply to it from your phone/i.test(src), 'the working method is not explained');
-  assert.ok(/Do not open it/i.test(src), 'the "do not open it first" condition is missing');
-  assert.ok(/quote is the only route/i.test(src), 'must say where the media comes from');
+  assert.ok(/DEVICE_IDENTITY=android/.test(src), 'the Android identity fix is not explained');
+  assert.ok(/creds\.platform/.test(src), 'auto-matching the stored platform is not explained');
+  assert.ok(/queuePending\(\)/.test(src), 'the item is not queued for late-arriving media');
+  assert.ok(!/you sent yourself/i.test(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')),
+    'the false "you sent it yourself" refusal is still in the code');
+  assert.ok(/view_once_unavailable_fanout/.test(src), 'the real stand-in is not named');
 });
 
 t('an empty stub stores nothing, and every arrival is still logged', () => {

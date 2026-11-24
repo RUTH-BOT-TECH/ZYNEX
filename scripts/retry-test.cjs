@@ -115,16 +115,21 @@ t('the refresh is applied only to self-sends, not every send', () => {
   assert.ok(/bare\(target\) === meId/.test(src), 'unconditional cache-busting would be wasteful');
 });
 
-console.log('\n══ .vv on an unrecoverable stub ══\n');
+console.log('\n══ .vv on a keyless view-once stand-in ══\n');
 
-t('.vv explains that an unrecoverable view-once is not a transient failure', () => {
-  // The wording was rewritten when the stored-original lookup moved to the
-  // front; the requirement is unchanged — the reply must not suggest "try
-  // again later" for something that cannot come back.
+t('.vv names the real cause instead of declaring the item unrecoverable', () => {
+  // Nov 2026: this stand-in is a `view_once_unavailable_fanout` caused by the
+  // socket presenting WEB while the session was linked as Android. It is NOT
+  // permanent — restoring the identity (or a late append batch) delivers the
+  // media. The old "nothing can recover it" answer was factually wrong and
+  // blamed the sender via fromMe.
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'commands', 'vv.js'), 'utf8');
-  assert.ok(/quote arrived stripped|never received that view-once/i.test(src), 'must name the real situation');
-  assert.ok(/nothing can recover it|nothing to unlock/i.test(src), 'must not imply a transient failure');
-  assert.ok(/Nothing can recover it/i.test(src), 'must be honest about permanence');
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(/view_once_unavailable_fanout/i.test(src), 'the real stand-in is not named');
+  assert.ok(/DEVICE_IDENTITY=android/.test(src), 'the identity fix is not explained');
+  assert.ok(/queuePending\(\)/.test(code), 'the item is not queued for late-arriving media');
+  assert.ok(!/you sent yourself/i.test(code), 'a command fromMe is still misread as the quoted author');
+  assert.ok(!/Nothing can recover it/i.test(code), 'still claims the item is permanently lost');
 });
 
 console.log(`\n${fail === 0 ? '✔' : '✗'} ${pass}/${pass + fail} passed\n`);

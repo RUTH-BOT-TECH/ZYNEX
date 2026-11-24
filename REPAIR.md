@@ -136,3 +136,42 @@ the only things left.
 cookies from a spare account in a private window → PO-token provider →
 residential proxy / cleaner IP, plus the deployment caveat (Vercel serverless
 cannot hold a Baileys socket or a 20 MB download; use Railway/Render/VPS).
+
+---
+
+## 6. Update 3 — `.vv` still failed on Railway: device identity + "eventually open"
+
+The user reported `.vv` still not succeeding despite the section 1 repair. Read
+the live Railway logs (read-only) and found the real cause was **not** the send
+path — the media never reached the bot at all:
+
+```
+[IDENTITY] ⚠ This session was linked as platform android
+but DEVICE_IDENTITY now presents 1 (chrome)
+[VV] node inventory. keys=["interactiveAnnotations","scanLengths","annotations","viewOnce"]
+     directPath=MISSING url=MISSING mediaKey=MISSING
+[VV] all routes failed. stanzaId=AC1CA7EF… original=not-stored cached=no
+     fromMe=true routes=["… No valid media URL or directPath present in message" ×3]
+```
+
+Four defects: (1) `DEVICE_IDENTITY` unset → Android-linked session presented
+WEB; since WhatsApp's Nov 2026 update, WEB companions get a keyless
+`view_once_unavailable_fanout` stand-in, not the media. (2) The old `android`
+preset put the token in `browser[0]`, but Baileys 7.0.0-rc14 reads
+`browser[1]` — so even `DEVICE_IDENTITY=android` still logged in as WEB.
+(3) `msg.key.fromMe` (true for EVERY owner command on a self-bot) was misread
+as "you sent this view-once yourself" and refused. (4) Keyless upserts were
+dropped before `storeMessage`, and nothing queued a late-arriving item.
+
+**Shipped:** `lib/deviceIdentity.js` now auto-matches `creds.platform` when the
+env var is empty (no Railway change, no re-pair for an Android session) and
+presents `['Chrome','Android','130.0.6723.58']`; `lib/sessionManager.js`,
+`lib/panelBot.js`, `lib/bot.js` all follow it; `lib/viewOncePending.js` (new)
+delivers the media automatically when it lands under the same stanzaId — one
+send, original caption kept, 90 s bounded window; `lib/commands/vv.js` drops
+the false self-sent refusal and the "nothing can recover it" fatalism.
+`.env.example` documents the switch; `VV.md` is the full operator write-up.
+
+`scripts/vv-identity-test.cjs` (17 checks) reproduces the log shape end to end;
+five older suites were updated where they asserted the old wrong story.
+`npm run test:all` — exit 0 (see section 3 for the earlier green run).

@@ -182,15 +182,24 @@ const run = async (message, { cached = null } = {}) => {
   });
 
   /* ── the failure that was actually happening ──────────────────────────── */
+  /**
+   * The live log had fromMe=true on EVERY `.vv` — because on a self-bot the
+   * owner's own command messages are fromMe. The old code read that as
+   * "you sent this view-once yourself, no bot can recover it" and refused.
+   * That was a lie: the item was a view_once_unavailable_fanout stand-in from
+   * a WEB companion. Own and peer view-once are unlocked identically once the
+   * Android identity is restored, so both must be queued, never blamed.
+   */
   await (async () => {
     const stub = { interactiveAnnotations: {}, scanLengths: [], annotations: {}, viewOnce: true };
     const { msg } = replyTo(stub);
-    msg.key.fromMe = true;                 // ← 13 of 14 production attempts
+    msg.key.fromMe = true;                 // ← all three production attempts
     const out = await run(msg);
-    t('a view-once the bot sent itself says so, instead of guessing', () => {
+    t('a self-sent command is NOT wrongly told "you sent it yourself"', () => {
       const joined = out.join('\n');
-      if (!/you sent yourself/i.test(joined)) throw new Error('did not identify the self-sent case: ' + joined.slice(0, 140));
-      if (!/ask somebody else to send/i.test(joined)) throw new Error('does not say how to test it properly');
+      if (/you sent yourself/i.test(joined)) throw new Error('fromMe=true on a command was misread as the quoted author');
+      if (!/queued|wait/i.test(joined)) throw new Error('no queued/awaiting-media reply: ' + joined.slice(0, 140));
+      if (!/DEVICE_IDENTITY=android/.test(joined)) throw new Error('does not name the identity fix');
     });
   })();
 
@@ -202,6 +211,7 @@ const run = async (message, { cached = null } = {}) => {
     t("somebody else's stub is not blamed on the sender", () => {
       const joined = out.join('\n');
       if (/you sent yourself/i.test(joined)) throw new Error('misattributed a peer message to the user');
+      if (!/queued|wait/i.test(joined)) throw new Error('peer item was not queued: ' + joined.slice(0, 140));
     });
   })();
 
