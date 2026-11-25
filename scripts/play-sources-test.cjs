@@ -74,6 +74,16 @@ t('pickFullLengthEntry skips the 30-second Go+ previews', () => {
 t('pickFullLengthEntry rejects a multi-hour mix', () => {
   assert.strictEqual(I.pickFullLengthEntry([{ webpage_url: 'x', duration: 7200 }]), null);
 });
+
+t('a DRM-protected SoundCloud result is skipped, not fatal', () => {
+  // yt-dlp lists DRM tracks in scsearch but refuses them at download time:
+  // "ERROR: [soundcloud] 373180994: This video is DRM protected". Without a
+  // re-roll, .play fell all the way back to a 30-second Deezer preview.
+  const src = fs.readFileSync(path.join(ROOT, 'lib', 'ytdlp.js'), 'utf8');
+  assert.match(src, /DRM protected/i);
+  assert.match(src, /excludeUrls/);
+  assert.match(src, /tried\.add\(info\.webpage_url\)/);
+});
 t('the audio chain tries YouTube first, then SoundCloud', () => {
   assert.deepStrictEqual(I.audioSources(), ['youtube', 'soundcloud']);
 });
