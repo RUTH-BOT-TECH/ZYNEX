@@ -148,8 +148,12 @@ function ctx(sock, extra = {}) {
       m: { message: { extendedTextMessage: { contextInfo: { participant: '2349165331115@s.whatsapp.net' } } } },
     });
     await reactions.execute(cmd);
-    assert.ok(/2349165331115/.test(sent[0].payload.caption), sent[0].payload.caption);
-    assert.deepStrictEqual(sent[0].payload.mentions, ['2349165331115@s.whatsapp.net']);
+    assert.ok(/@2349165331115/.test(sent[0].payload.caption), sent[0].payload.caption);
+    // BOTH people are tappable tags, and the sender is no longer shown as a
+    // bare bold number — that was the "number / ID stuff" complaint.
+    assert.ok(sent[0].payload.mentions.includes('2349165331115@s.whatsapp.net'));
+    assert.ok(sent[0].payload.mentions.includes('2348021016309@s.whatsapp.net'));
+    assert.ok(/@2348021016309/.test(sent[0].payload.caption), sent[0].payload.caption);
   });
 
   console.log('\n══ graceful degradation ══\n');

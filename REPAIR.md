@@ -94,7 +94,8 @@ node server.js               # boots clean, waits for SESSION_ID (panel mode)
 
 ## 4. Still on your side
 
-- **No push was made** — the changes are committed locally only. Push to your repo / redeploy.
+- **Pushed.** Every repair in this file is on GitHub `main`; Railway does not
+  auto-deploy, so click **Redeploy** in the Railway dashboard to run the new build.
 - `.play` full-length downloads need a YouTube session that isn't bot-gated; from a
   datacentre IP yt-dlp may still need cookies. The bot falls back to 30s previews and says so.
 - Pair a **fresh** session if you change `DEVICE_IDENTITY` (see §1).

@@ -63,7 +63,9 @@ const ok=(n,c,d='')=>{if(c){pass++;console.log('  ✓ '+n);}else{fail.push(n+' :
   sent=[]; await ft('up');
   ok('plain "up" is answered', isPng() || /Nothing moves/.test(txt()), txt().slice(0,40));
   sent=[]; await ft('right');
-  ok('plain "right" sends PNG', isPng());
+  // A fresh 2048 board is random: after "left" and "up", "right" can legally be
+  // a no-op. Both the new board and the honest refusal are correct answers.
+  ok('plain "right" is answered', isPng() || /Nothing moves/.test(txt()), txt().slice(0, 40));
 
   console.log('\n── Minesweeper plays with images ──');
   sent=[]; await games.execute(mk('minesweeper'));

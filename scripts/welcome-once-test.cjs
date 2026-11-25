@@ -101,8 +101,11 @@ t('panel mode also sends its CONNECTED banner only once', () => {
   assert.match(pb, /connectedBannerSent = true;/);
   assert.match(pb, /CONNECTED banner skipped \(reconnected socket\)/);
   const guard = pb.indexOf('if (!connectedBannerSent)');
-  const send = pb.indexOf('sock.sendMessage(user.id, { text: connectedBanner() })', guard);
+  // The payload may also carry linkPreview:false; what matters is that the
+  // send sits inside the once-only guard.
+  const send = pb.indexOf('sock.sendMessage(user.id, { text: connectedBanner()', guard);
   assert.ok(guard !== -1 && send > guard, 'panel banner is outside its guard');
+  assert.match(pb, /text: connectedBanner\(\), linkPreview: false/);
 });
 
 t('sendConnectionMessage uses the socket that emitted open', () => {
