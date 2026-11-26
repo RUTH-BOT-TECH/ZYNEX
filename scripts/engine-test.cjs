@@ -116,7 +116,7 @@ async function run(cmdName, args = []) {
   }
   {
     const r = await run('rate');
-    check('.rate gives a deterministic score', r.ok && /\d+\/100/.test(r.output), r.reason);
+    check('.rate gives a deterministic score out of 10', r.ok && /\d+\/10/.test(r.output), r.reason);
   }
   {
     const r = await run('choose', ['tea, coffee']);

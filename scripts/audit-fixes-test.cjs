@@ -171,8 +171,8 @@ t('reply(), captions and direct text sends use hint() + linkPreview:false', () =
     const pkg = JSON.parse(src('package.json'));
     const count = Object.keys(pkg.scripts).filter((k) => k.startsWith('test:')).length;
     const chain = pkg.scripts['test:all'].split('&&').length;
-    assert.strictEqual(count, 55);
-    assert.strictEqual(chain, 55);
+    assert.strictEqual(count, 56);
+    assert.strictEqual(chain, 56);
     assert.match(src('README.md'), new RegExp(`→ ${count} suites, exit 0`));
     assert.match(src('public/assets/readme/meta-tests.svg'), new RegExp(`>${count} SUITES<`));
     assert.match(src('public/assets/readme/stat-tests.svg'), new RegExp(`>${count}<`));

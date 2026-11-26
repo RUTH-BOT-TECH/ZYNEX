@@ -65,8 +65,8 @@ It is wired into `reactions.js`, `fun.js`, `economy.js`, `games.js`,
 
 ## 3. Validation
 
-- `npm run test:all` → **55 suites, exit 0**, no `✗` markers.
-- New suites: `test:mentions` (18/18) and `test:audit-fixes` (13/13).
+- `npm run test:all` → **56 suites, exit 0**, no `✗` markers.
+- New suites: `test:mentions` (18/18), `test:audit-fixes` (13/13) and `test:command-truth`.
 - `test:reactions` 12/12, `test:welcome-once` 12/12, `test:play-priority` 10/10.
 - `node scripts/audit-commands.cjs` still reports 1,364 / 2,202 implemented,
   204 files, audit clean.
@@ -91,3 +91,19 @@ It is wired into `reactions.js`, `fun.js`, `economy.js`, `games.js`,
 Reaction names such as `hug`/`kiss` also appear in the catalogue's `image`
 family string, but the reactions engine owns those names at registry priority —
 this is an informational duplicate, not a broken command.
+
+---
+
+## 5. Follow-up: command-truth fixes (`the follow-up local commit`)
+
+After researching comparable WhatsApp bots, two more verified mismatches were
+corrected without guessing at ambiguous abbreviations:
+
+- `.rate <thing>` now rates the typed subject **out of 10** instead of ignoring
+  it and printing `40–99 /100` for the sender.
+- `.hidetag` now routes to the **silent** group tag engine; `.tagall` remains
+  the visible numbered tag list.
+- `scripts/command-truth-test.cjs` (9/9) pins both behaviours.
+- Ambiguous `.qc` / `.attp` / `.swm` / `.wm` / `.take` / `.steal` names were
+  researched again and deliberately left untouched — see `COMMAND-TRUTH.md`.
+- Full `npm run test:all` is green across **56 suites**.
