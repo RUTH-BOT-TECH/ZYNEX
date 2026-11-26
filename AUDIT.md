@@ -59,7 +59,7 @@ It is wired into `reactions.js`, `fun.js`, `economy.js`, `games.js`,
 | `.send`, `.trade` | transfer replies printed `@number` without tagging | `mentions` added |
 | Custom `PREFIX` | ~100 usage hints hardcoded `*.menu*`, `` `.play` ``, `Use .resize 800` | `lib/commandHint.js` rewrites only known command hints; URLs, decimals and `.env` are untouched |
 | Direct `sendMessage` | some text payloads skipped `linkPreview:false`, so URL-bearing text could still hit the missing link-preview module | handler wraps the command socket; direct text sends in group/anti/session/panel paths now opt out |
-| Stale truth | README said 52 suites; `package.json` said `57+ commands`; `REPAIR.md` said no push was made | now 55 suites, 2,202 names / 1,364 implemented, truthful push note |
+| Stale truth | README said 52 suites; `package.json` said `57+ commands`; `REPAIR.md` said no push was made | now 56 suites, 2,202 names / 1,365 implemented, truthful push note |
 
 ---
 
@@ -68,8 +68,8 @@ It is wired into `reactions.js`, `fun.js`, `economy.js`, `games.js`,
 - `npm run test:all` → **56 suites, exit 0**, no `✗` markers.
 - New suites: `test:mentions` (18/18), `test:audit-fixes` (13/13) and `test:command-truth`.
 - `test:reactions` 12/12, `test:welcome-once` 12/12, `test:play-priority` 10/10.
-- `node scripts/audit-commands.cjs` still reports 1,364 / 2,202 implemented,
-  204 files, audit clean.
+- `node scripts/audit-commands.cjs` now reports 1,365 / 2,202 implemented,
+  205 files, audit clean.
 - `board-test.cjs` had one random 2048 false failure: after `left` + `up`,
   `right` can legally be a no-op. The test now accepts the honest
   `Nothing moves that way.` reply as well as a new board.
@@ -105,5 +105,36 @@ corrected without guessing at ambiguous abbreviations:
   the visible numbered tag list.
 - `scripts/command-truth-test.cjs` (9/9) pins both behaviours.
 - Ambiguous `.qc` / `.attp` / `.swm` / `.wm` / `.take` / `.steal` names were
-  researched again and deliberately left untouched — see `COMMAND-TRUTH.md`.
+  researched again and deliberately left untouched in this first pass — later
+  completed in section 6 and `COMMAND-TRUTH.md`.
 - Full `npm run test:all` is green across **56 suites**.
+
+---
+
+## 6. Follow-up: remaining command-truth corrections
+
+After more source-level research, the deliberately skipped commands were fixed
+without guessing. The full report is `COMMAND-TRUTH.md`.
+
+- `.qc` now makes a PNG quote card from typed text **or a replied message**;
+  `.quotely` makes a WebP quote sticker. Both carry real sticker EXIF where
+  applicable.
+- `.attp` is now a real **animated rainbow WebP sticker** (`ANIM`/`ANMF`, 8
+  frames, infinite loop, `isAnimated: true`). `.ttp` stays static.
+- `.swm` now repacks a replied sticker with `pack|author` EXIF; `.wm` still draws
+  a visible watermark on an image. The two conventions are no longer collapsed.
+- `.take` / `.steal` now repack a replied sticker with real EXIF metadata. When
+  `.steal` is used without a sticker it still runs the economy robbery command,
+  so both documented meanings survive.
+- `.sticker` / `.s` now write pack/author into the WebP EXIF instead of relying
+  on Baileys `packname`/`author` fields, and convert video to animated WebP.
+- New `lib/stickerMetadata.js` and `node-webpmux@3.2.1` provide real WebP EXIF
+  muxing for static and animated stickers.
+- `lib/handler.js` now passes `command: cmdName` to file commands so `.take` and
+  `.steal` can be distinguished.
+- `test:command-truth` is now **15/15**; `test:converter` is **45/45**.
+- `npm run test:all` is green across **56 suites**, 0 failures.
+- Coverage is now **1,365 / 2,202**, **205 files · 1,160 engine-backed · 837
+  stubs**, audit clean.
+- No badge/tick, `.vv`, `.play`, Railway log/config, Supabase or Vercel changes.
+- Still local only: no push, no deploy, no live WhatsApp retest.

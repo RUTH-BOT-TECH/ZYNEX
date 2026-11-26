@@ -7,8 +7,9 @@
  *   .hidetag       → silently tag everyone (no visible @numbers)
  *   .tagall        → visible tag list
  *
- * This suite pins the two high-confidence mismatches. Ambiguous abbreviations
- * (.qc/.attp/.swm/.wm/.take/.steal) are deliberately NOT changed here.
+ * This suite pins the researched command meanings. The first pass fixed .rate
+ * and .hidetag; the second pass resolved the sticker abbreviations by separating
+ * competing conventions instead of guessing, and kept .who/.alwaysonline intact.
  */
 'use strict';
 process.env.SILENT = '1';
@@ -21,6 +22,9 @@ const src = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const registry = require(path.join(ROOT, 'lib', 'registry'));
 const fun = require(path.join(ROOT, 'lib', 'engines', 'fun'));
 const group = require(path.join(ROOT, 'lib', 'engines', 'group'));
+const sharp = require('sharp');
+const stickerMeta = require(path.join(ROOT, 'lib', 'stickerMetadata'));
+const take = require(path.join(ROOT, 'lib', 'commands', 'take'));
 
 let pass = 0, fail = 0;
 function t(name, fn) {
@@ -128,11 +132,82 @@ t('registry no longer describes .rate as "Rate someone"', () => {
     assert.strictEqual(sent[0].payload.linkPreview, false);
   });
 
-  t('ambiguous sticker abbreviations are still untouched', () => {
+  console.log('\n══ remaining command-truth fixes ══\n');
+
+  t('researched sticker names now have truthful descriptions', () => {
+    assert.match(registry.get('qc').desc, /Quote card/);
+    assert.match(registry.get('quotely').desc, /Quote sticker/);
+    assert.match(registry.get('ttp').desc, /Plain static text sticker/);
+    assert.match(registry.get('attp').desc, /Animated rainbow/);
+    assert.match(registry.get('swm').desc, /pack\|author EXIF/);
+    assert.match(registry.get('wm').desc, /visible watermark/);
+    assert.match(registry.get('take').desc, /Repack a replied sticker/);
+    assert.match(registry.get('steal').desc, /Repack a replied sticker/);
+  });
+
+  t('competing sticker conventions are separated in code', () => {
     const c = src('lib/engines/converter.js');
-    assert.match(c, /if \(command === 'qc'\)/);
-    assert.match(c, /if \(command === 'swm' \|\| command === 'wm'\)/);
-    assert.match(c, /if \(command === 'ttp' \|\| command === 'attp'\)/);
+    assert.match(c, /if \(command === 'qc' \|\| command === 'quotely'\)/);
+    assert.match(c, /if \(command === 'ttp'\)/);
+    assert.match(c, /if \(command === 'attp'\)/);
+    assert.match(c, /if \(command === 'swm'\)/);
+    assert.match(c, /if \(command === 'wm'\)/);
+    assert.match(c, /rainbowTextSticker/);
+    assert.match(c, /repackSticker/);
+    assert.ok(!c.includes('quotely: {'), '.quotely is still a refusal');
+  });
+
+  t('.take / .steal have one clear owner and preserve economy .steal', () => {
+    assert.strictEqual(registry.get('take').source, 'file');
+    assert.strictEqual(registry.get('steal').source, 'file');
+    assert.ok(!/aliases:\s*\[[^\]]*'take'/.test(src('lib/commands/sticker.js')));
+    assert.match(src('lib/commands/take.js'), /command: 'steal'/);
+    assert.match(src('lib/engines/economy.js'), /steal:\s*\{/);
+    assert.match(src('lib/commands/sticker.js'), /repackSticker/);
+  });
+
+  t('handler passes the invoked command name to file commands', () => {
+    assert.match(src('lib/handler.js'), /command: cmdName/);
+  });
+
+  t('real WebP EXIF metadata dependency is declared', () => {
+    const pkg = JSON.parse(src('package.json'));
+    assert.ok(pkg.dependencies['node-webpmux'], 'node-webpmux is missing');
+  });
+
+  t('.who and .alwaysonline remain wired to their verified behaviour', () => {
+    assert.match(src('lib/engines/games.js'), /if \(command === 'who'\)/);
+    assert.match(src('lib/commands/alwaysonline.js'), /alwaysOnline/);
+    assert.match(src('lib/sessionManager.js'), /alwaysOnline/);
+  });
+
+  await ta('.take repacks a replied sticker with real EXIF', async () => {
+    const STICKER = await sharp({
+      create: { width: 512, height: 512, channels: 4, background: { r: 20, g: 120, b: 240, alpha: 1 } },
+    }).webp({ quality: 80 }).toBuffer();
+    const sent = [];
+    const ctx = {
+      command: 'take',
+      args: ['MyPack', '|', 'Me'],
+      from: '120363take@g.us',
+      sender: SENDER,
+      pushName: 'Tester',
+      prefix: '.',
+      msg: {
+        key: { remoteJid: '120363take@g.us', id: 'TAKE1' },
+        message: { extendedTextMessage: { contextInfo: { quotedMessage: { stickerMessage: {} }, participant: TARGET } } },
+      },
+      m: { key: {}, message: {} },
+      sock: { sendMessage: async (jid, payload) => { sent.push(payload); return {}; } },
+      reply: async (text) => { sent.push({ text: String(text) }); return {}; },
+      download: async () => STICKER,
+    };
+    await take.execute(ctx);
+    const sticker = (sent.find((x) => x.sticker) || {}).sticker;
+    const meta = await stickerMeta.readStickerMetadata(sticker);
+    assert.ok(stickerMeta.isWebp(sticker), 'no WebP sticker sent');
+    assert.strictEqual(meta && meta['sticker-pack-name'], 'MyPack');
+    assert.strictEqual(meta && meta['sticker-pack-publisher'], 'Me');
   });
 
   t('the suite count in package.json / README is truthful', () => {

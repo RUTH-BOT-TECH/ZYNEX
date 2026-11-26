@@ -3,8 +3,9 @@ const sharp = require('sharp');
 const { execFileSync } = require('child_process');
 const bin = require('ffmpeg-static');
 const fs = require('fs');
+const stickerMeta = require('../lib/stickerMetadata');
 
-let IMG, VID, AUD;
+let IMG, VID, AUD, STICKER;
 let sent = [];
 function ctx(command, args = [], extra = {}) {
   return {
@@ -21,12 +22,14 @@ const last = () => sent[sent.length-1] || {};
 const txt  = () => String(last().caption || last().text || '');
 const isPng = b => b && b.slice(0,4).toString('hex') === '89504e47';
 const isWebp = b => b && b.slice(8,12).toString('ascii') === 'WEBP';
+const hasAnim = b => stickerMeta.isAnimatedWebp(b);
 let pass=0, fail=[];
 const ok=(n,c,d='')=>{ if(c){pass++;console.log('  ✓ '+n);} else {fail.push(n+' :: '+d);console.log('  ✗ '+n+'  '+d);} };
 
 (async () => {
   // fixtures
   IMG = await sharp({create:{width:800,height:600,channels:3,background:'#4a90d9'}}).png().toBuffer();
+  STICKER = await sharp({create:{width:512,height:512,channels:4,background:{r:255,g:80,b:20,alpha:1}}}).webp({quality:80}).toBuffer();
   execFileSync(bin, ['-y','-f','lavfi','-i','testsrc=duration=2:size=320x240:rate=10','-f','lavfi','-i','sine=frequency=440:duration=2','-c:v','libx264','-c:a','aac','-shortest','-pix_fmt','yuv420p','/tmp/conv.mp4'], {stdio:'ignore'});
   execFileSync(bin, ['-y','-f','lavfi','-i','sine=frequency=440:duration=2','-b:a','96k','/tmp/conv.mp3'], {stdio:'ignore'});
   VID = fs.readFileSync('/tmp/conv.mp4');
@@ -49,8 +52,13 @@ const ok=(n,c,d='')=>{ if(c){pass++;console.log('  ✓ '+n);} else {fail.push(n+
   ok('.ttp sends a sticker', isWebp(last().sticker));
   sent=[]; await conv.execute(ctx('attp',['zynex']));
   ok('.attp sends a sticker', isWebp(last().sticker));
+  ok('.attp is a real animated WebP', hasAnim(last().sticker) && last().isAnimated === true);
   sent=[]; await conv.execute(ctx('qc',['Stay','hungry','|','Steve','Jobs']));
   ok('.qc sends a quote card', isPng(last().image), txt().slice(0,50));
+  sent=[]; await conv.execute(ctx('qc',[],{quoted:{conversation:'Hello from a replied message'}}));
+  ok('.qc can quote a replied message', isPng(last().image), txt().slice(0,50));
+  sent=[]; await conv.execute(ctx('quotely',['Stay','hungry','|','Steve','Jobs']));
+  ok('.quotely sends a WebP quote sticker', isWebp(last().sticker));
   sent=[]; await conv.execute(ctx('emoji2png',['😂']));
   ok('.emoji2png sends a sticker', isWebp(last().sticker));
   sent=[]; await conv.execute(ctx('emojimix',['😂','🔥']));
@@ -72,9 +80,15 @@ const ok=(n,c,d='')=>{ if(c){pass++;console.log('  ✓ '+n);} else {fail.push(n+
   sent=[]; await conv.execute(ctx('img2pdf'));
   ok('.img2pdf sends a document', last().document && last().document.slice(0,4).toString()==='%PDF');
 
-  console.log('\n── watermark ──');
-  sent=[]; await conv.execute(ctx('swm',['ZYNEX']));
-  ok('.swm watermarks', isPng(last().image));
+  console.log('\n── watermark / sticker EXIF ──');
+  sent=[]; await conv.execute(ctx('wm',['ZYNEX']));
+  ok('.wm draws a visible watermark', isPng(last().image));
+  sent=[]; await conv.execute(ctx('swm',['MyPack','|','Me'],{quoted:{stickerMessage:{}},download:async()=>STICKER}));
+  const swmSticker = (sent.find(x => x.sticker) || {}).sticker;
+  const swmMeta = await stickerMeta.readStickerMetadata(swmSticker);
+  ok('.swm writes real pack/author EXIF', isWebp(swmSticker) && swmMeta && swmMeta['sticker-pack-name'] === 'MyPack' && swmMeta['sticker-pack-publisher'] === 'Me', JSON.stringify(swmMeta));
+  sent=[]; await conv.execute(ctx('swm',['X'],{quoted:{imageMessage:{}}}));
+  ok('.swm refuses non-sticker media', /Reply to a \*sticker\*/i.test(txt()), txt().slice(0,70));
 
   console.log('\n── honest refusals ──');
   for (const c of ['ocr','readtext','removebg','imgbb','catbox','telegraph','doc2pdf','pdf2img']) {

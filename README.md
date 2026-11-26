@@ -39,12 +39,12 @@ Always-on process + a volume at `/data` with `AUTH_DIR_ROOT=/data`. Railway, Ren
 
 <div align="center">
 <img src="public/assets/readme/stat-names.svg" width="180" alt="2,202 names">
-<img src="public/assets/readme/stat-implemented.svg" width="180" alt="1,364 implemented">
+<img src="public/assets/readme/stat-implemented.svg" width="180" alt="1,365 implemented">
 <img src="public/assets/readme/stat-tests.svg" width="180" alt="56 test suites">
-<img src="public/assets/readme/stat-files.svg" width="180" alt="204 command files">
+<img src="public/assets/readme/stat-files.svg" width="180" alt="205 command files">
 </div>
 
-**2,202 names · 1,364 implemented (61.9%) · 838 honest refusals.** `.vv` opens
+**2,202 names · 1,365 implemented (62.0%) · 837 honest refusals.** `.vv` opens
 view-once media (yours or anyone's), `.play` returns full tracks, and a command
 that can't run says why and names one that works.
 
