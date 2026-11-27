@@ -7,7 +7,7 @@
 [![Node 20+](public/assets/readme/meta-node.svg)](https://nodejs.org)
 [![Baileys rc14](public/assets/readme/meta-baileys.svg)](https://github.com/WhiskeySockets/Baileys)
 [![MIT](public/assets/readme/meta-license.svg)](LICENSE)
-[![56 tests](public/assets/readme/meta-tests.svg)](#-by-the-numbers)
+[![57 tests](public/assets/readme/meta-tests.svg)](#-by-the-numbers)
 
 <img src="public/assets/readme/zynex-glow.svg" width="100%" alt="">
 </div>
@@ -38,13 +38,13 @@ Always-on process + a volume at `/data` with `AUTH_DIR_ROOT=/data`. Railway, Ren
 ## 📊 **By the numbers**
 
 <div align="center">
-<img src="public/assets/readme/stat-names.svg" width="180" alt="2,202 names">
-<img src="public/assets/readme/stat-implemented.svg" width="180" alt="1,365 implemented">
-<img src="public/assets/readme/stat-tests.svg" width="180" alt="56 test suites">
-<img src="public/assets/readme/stat-files.svg" width="180" alt="205 command files">
+<img src="public/assets/readme/stat-names.svg" width="180" alt="2,209 names">
+<img src="public/assets/readme/stat-implemented.svg" width="180" alt="1,373 implemented">
+<img src="public/assets/readme/stat-tests.svg" width="180" alt="57 test suites">
+<img src="public/assets/readme/stat-files.svg" width="180" alt="210 command files">
 </div>
 
-**2,202 names · 1,365 implemented (62.0%) · 837 honest refusals.** `.vv` opens
+**2,209 names · 1,373 implemented (62.2%) · 836 honest refusals.** `.vv` opens
 view-once media (yours or anyone's), `.play` returns full tracks, and a command
 that can't run says why and names one that works.
 
@@ -61,9 +61,9 @@ that can't run says why and names one that works.
 [DEPLOY.md](DEPLOY.md) · [RAILWAY-NOTES.md](RAILWAY-NOTES.md) · [HEALTH.md](HEALTH.md) ·
 [VV.md](VV.md) · [PLAY.md](PLAY.md) · [ENGINES.md](ENGINES.md) ·
 [STRUCTURE.md](STRUCTURE.md) · [APIS.md](APIS.md) · [SECURITY.md](SECURITY.md) ·
-[REPAIR.md](REPAIR.md) · [AUDIT.md](AUDIT.md)
+[REPAIR.md](REPAIR.md) · [AUDIT.md](AUDIT.md) · [COMMAND-TRUTH-2.md](COMMAND-TRUTH-2.md)
 
-`npm run test:all` → 56 suites, exit 0 · `npm run coverage` → the numbers above.
+`npm run test:all` → 57 suites, exit 0 · `npm run coverage` → the numbers above.
 
 <div align="center">
 <img src="public/assets/readme/zynex-status.svg" width="580" alt="Pairing site live">

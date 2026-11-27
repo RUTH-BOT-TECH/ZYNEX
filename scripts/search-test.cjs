@@ -65,6 +65,7 @@ const CASES = [
 
   // anime + manga — anilist (POST graphql)
   ['anilist',    ['naruto'],          /ANIME/i],
+  ['anime',      ['naruto'],          /Score|Episode|ANIME/i],
   ['animesearch',['naruto'],          /ANIME/i],
   ['mal',        ['naruto'],          /ANIME/i],
   ['animeinfo',  ['naruto'],          /Score|Episode/i],
@@ -155,7 +156,7 @@ const CASES = [
 
   /* 4. argument-required routes must refuse politely, not crash */
   console.log('');
-  for (const cmd of ['track', 'album', 'artist', 'anilist', 'animeinfo', 'character', 'manga', 'series', 'calories', 'wikihow', 'rhyme']) {
+  for (const cmd of ['track', 'album', 'artist', 'anime', 'anilist', 'animeinfo', 'character', 'manga', 'series', 'calories', 'wikihow', 'rhyme']) {
     try {
       await search.execute(ctx(cmd, []));
       const b = body();

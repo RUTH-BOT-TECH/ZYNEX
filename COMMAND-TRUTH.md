@@ -9,7 +9,7 @@ The first pass fixed `.rate` and `.hidetag`; this follow-up resolves the sticker
 abbreviations by **separating the competing conventions** instead of guessing.
 The badge/tick detail you love is untouched.
 
-**Status:** local commits only — not pushed. Full **56-suite** validation is green.
+**Status:** pushed in `1e82b68`. A later pass added `COMMAND-TRUTH-2.md`; current validation is **57 suites**. This report preserves the earlier audit state, so its inventory numbers are historical; current numbers live in `COMMAND-TRUTH-2.md`.
 
 ---
 
@@ -130,9 +130,9 @@ command or context:
   1,160 engine-backed · 837 stubs**.
 - `node --check` passes on every changed JavaScript file.
 - No live WhatsApp retest was possible from this workspace.
-- This follow-up is **local only**: no push happened because no push token was
-  provided. Railway auto-deploy is still off, so a manual **Redeploy** is needed
-  after the push.
+- When this report was first written, the follow-up was local only; it was later
+  pushed as `1e82b68`. See `COMMAND-TRUTH-2.md` for the newer pass. Railway
+  auto-deploy is still off, so a manual **Redeploy** is needed after any push.
 - Rotate/revoke the raw GitHub PAT and Railway account token pasted earlier.
 
 ---

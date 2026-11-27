@@ -168,7 +168,7 @@ function run(extra = {}) {
 
   t('stale metadata is gone', () => {
     assert.ok(!/57\+ commands/.test(src('package.json')));
-    assert.match(src('package.json'), /2,202 command names/);
+    assert.match(src('package.json'), /2,209 command names/);
     assert.ok(!/No push was made/.test(src('REPAIR.md')));
   });
 

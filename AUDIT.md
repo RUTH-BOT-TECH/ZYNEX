@@ -59,17 +59,17 @@ It is wired into `reactions.js`, `fun.js`, `economy.js`, `games.js`,
 | `.send`, `.trade` | transfer replies printed `@number` without tagging | `mentions` added |
 | Custom `PREFIX` | ~100 usage hints hardcoded `*.menu*`, `` `.play` ``, `Use .resize 800` | `lib/commandHint.js` rewrites only known command hints; URLs, decimals and `.env` are untouched |
 | Direct `sendMessage` | some text payloads skipped `linkPreview:false`, so URL-bearing text could still hit the missing link-preview module | handler wraps the command socket; direct text sends in group/anti/session/panel paths now opt out |
-| Stale truth | README said 52 suites; `package.json` said `57+ commands`; `REPAIR.md` said no push was made | now 56 suites, 2,202 names / 1,365 implemented, truthful push note |
+| Stale truth | README said 52 suites; `package.json` said `57+ commands`; `REPAIR.md` said no push was made | now 57 suites, 2,209 names / 1,373 implemented, truthful push note |
 
 ---
 
 ## 3. Validation
 
-- `npm run test:all` → **56 suites, exit 0**, no `✗` markers.
+- `npm run test:all` → **57 suites, exit 0**, no `✗` markers.
 - New suites: `test:mentions` (18/18), `test:audit-fixes` (13/13) and `test:command-truth`.
 - `test:reactions` 12/12, `test:welcome-once` 12/12, `test:play-priority` 10/10.
-- `node scripts/audit-commands.cjs` now reports 1,365 / 2,202 implemented,
-  205 files, audit clean.
+- `node scripts/audit-commands.cjs` now reports 1,373 / 2,209 implemented,
+  210 file-owned names, audit clean.
 - `board-test.cjs` had one random 2048 false failure: after `left` + `up`,
   `right` can legally be a no-op. The test now accepts the honest
   `Nothing moves that way.` reply as well as a new board.
@@ -81,7 +81,7 @@ It is wired into `reactions.js`, `fun.js`, `economy.js`, `games.js`,
 - No Railway logs, environment variables or deploy config were edited.
 - No Supabase or Vercel API calls were made.
 - No live WhatsApp `.hug` retest was possible from this workspace.
-- Railway auto-deploy is still off, so **redeploy** after the push to pick up
+- Railway auto-deploy is still off, so **redeploy** after any push to pick up
   these changes; a restart alone is not a new build.
 - Rotate/revoke the raw GitHub PAT and Railway account token previously pasted
   in chat. Neither is stored in the workspace.
@@ -107,7 +107,7 @@ corrected without guessing at ambiguous abbreviations:
 - Ambiguous `.qc` / `.attp` / `.swm` / `.wm` / `.take` / `.steal` names were
   researched again and deliberately left untouched in this first pass — later
   completed in section 6 and `COMMAND-TRUTH.md`.
-- Full `npm run test:all` is green across **56 suites**.
+- Full `npm run test:all` is green across **57 suites**.
 
 ---
 
@@ -133,8 +133,8 @@ without guessing. The full report is `COMMAND-TRUTH.md`.
 - `lib/handler.js` now passes `command: cmdName` to file commands so `.take` and
   `.steal` can be distinguished.
 - `test:command-truth` is now **15/15**; `test:converter` is **45/45**.
-- `npm run test:all` is green across **56 suites**, 0 failures.
-- Coverage is now **1,365 / 2,202**, **205 files · 1,160 engine-backed · 837
-  stubs**, audit clean.
+- `npm run test:all` is green across **57 suites**, 0 failures.
+- Coverage is now **1,373 / 2,209**, **210 file-owned · 1,163 engine-backed ·
+  836 stubs**, audit clean.
 - No badge/tick, `.vv`, `.play`, Railway log/config, Supabase or Vercel changes.
 - Still local only: no push, no deploy, no live WhatsApp retest.

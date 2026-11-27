@@ -213,8 +213,8 @@ t('registry no longer describes .rate as "Rate someone"', () => {
   t('the suite count in package.json / README is truthful', () => {
     const pkg = JSON.parse(src('package.json'));
     const count = Object.keys(pkg.scripts).filter((k) => k.startsWith('test:')).length;
-    assert.strictEqual(count, 56);
-    assert.strictEqual(pkg.scripts['test:all'].split('&&').length, 56);
+    assert.strictEqual(count, 57);
+    assert.strictEqual(pkg.scripts['test:all'].split('&&').length, 57);
     assert.match(src('README.md'), new RegExp(`→ ${count} suites, exit 0`));
   });
 
