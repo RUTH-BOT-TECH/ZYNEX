@@ -137,4 +137,29 @@ without guessing. The full report is `COMMAND-TRUTH.md`.
 - Coverage is now **1,373 / 2,209**, **210 file-owned · 1,163 engine-backed ·
   836 stubs**, audit clean.
 - No badge/tick, `.vv`, `.play`, Railway log/config, Supabase or Vercel changes.
-- Still local only: no push, no deploy, no live WhatsApp retest.
+- That follow-up was later pushed as `1e82b68`; no deploy or live WhatsApp
+  retest was performed here.
+
+---
+
+## 7. Follow-up: live-test corrections
+
+After the user's live test, two more researched defects were corrected. Full
+report: `LIVE-FIXES.md`.
+
+- `.anime` / `.animeinfo` now send the **AniList cover image with the anime
+  information caption**, falling back to text if the media send fails. Official
+  AniList `MediaCoverImage` fields were used; comparable bots send cover + caption.
+- Anti-bug rate limits are now **temporary drops only**: they no longer call
+  `handleBlock()` and no longer claim a permanent ban. The owner DM shows a
+  tappable `@number`, display name, group/DM, raw `@lid`, resolved phone number
+  when Baileys supplied one, the reason, and a matching `mentions` array. One
+  notice per sender per 30 seconds prevents DM flooding.
+- `test:command-truth-2` is **20/20**, `test:live` is **22/22**,
+  `test:search` is **67/67**, and `npm run test:all` is green across **57
+  suites**, 0 failures.
+- These changes were validated locally. At the time of writing, GitHub `main`
+  was at pushed `7a43b34`; commit/push and deployment are separate actions.
+  No Railway, Supabase or Vercel change was made.
+- No live WhatsApp retest was possible from this workspace; the next live test
+  should show the anime image and the identifiable owner notice.

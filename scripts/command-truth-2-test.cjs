@@ -31,6 +31,7 @@ const wiki = require(path.join(ROOT, 'lib', 'commands', 'wiki'));
 const getpp = require(path.join(ROOT, 'lib', 'commands', 'getpp'));
 const info = require(path.join(ROOT, 'lib', 'engines', 'info'));
 const media = require(path.join(ROOT, 'lib', 'engines', 'media'));
+const search = require(path.join(ROOT, 'lib', 'engines', 'search'));
 
 const realGet = axios.get;
 const realFetch = global.fetch;
@@ -63,10 +64,10 @@ t('.bing is a dedicated file command with real Bing results', () => {
   assert.strictEqual(e.category, 'search');
 });
 
-t('.anime is AniList information, not the media engine', () => {
+t('.anime is AniList info + cover image, not the media engine', () => {
   const e = registry.get('anime');
   assert.strictEqual(e.engine, 'search');
-  assert.match(e.desc, /Anime information by title/);
+  assert.match(e.desc, /Anime info \+ cover image/);
   assert.notStrictEqual(e.engine, 'media');
 });
 
@@ -131,6 +132,7 @@ t('Bing RSS parser and command are wired', () => {
 
 t('AniList anime branch and honest random-image names exist', () => {
   assert.match(src('lib/engines/search.js'), /command === 'anime' \|\| command === 'animeinfo'/);
+  assert.match(src('lib/engines/search.js'), /coverImage \{ extraLarge large \}/);
   assert.match(src('lib/engines/media.js'), /picsum\.photos/);
   assert.match(src('lib/catalogue/commands.js'), /animepic randomanime animeimg animeimage/);
 });
@@ -209,6 +211,39 @@ console.log('\n══ mocked functional checks ══\n');
       await info.execute({ command: 'antonym', args: ['happy'], argString: 'happy', reply: async (x) => ant.push(String(x)) });
       assert.match(ant[0], /Antonyms: happy/);
       assert.match(ant[0], /sad/);
+    });
+
+    await ta('.anime Naruto sends an AniList cover with the info caption', async () => {
+      global.fetch = async () => ({
+        ok: true,
+        text: async () => JSON.stringify({
+          data: {
+            Media: {
+              title: { romaji: 'NARUTO', english: 'Naruto' },
+              episodes: 220, duration: 23, status: 'FINISHED', seasonYear: 2002,
+              averageScore: 79, popularity: 123456, genres: ['Action', 'Adventure'],
+              studios: { nodes: [{ name: 'Pierrot' }] },
+              description: 'Naruto Uzumaki wants to become Hokage.',
+              coverImage: {
+                extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/naruto.jpg',
+                large: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/naruto.jpg',
+              },
+              bannerImage: 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/naruto.jpg',
+              siteUrl: 'https://anilist.co/anime/20',
+            },
+          },
+        }),
+      });
+      const sent = [];
+      await search.execute({
+        command: 'anime', args: ['Naruto'], argString: 'Naruto',
+        from: '120363@g.us', msg: { key: {}, message: {} },
+        sock: { sendMessage: async (_jid, payload) => { sent.push(payload); return {}; } },
+        reply: async (x) => sent.push({ text: String(x) }),
+      });
+      assert.match(String(sent[0]?.image?.url || ''), /anilist\.co/);
+      assert.match(String(sent[0]?.caption || ''), /NARUTO/);
+      assert.match(String(sent[0]?.caption || ''), /220 episodes/);
     });
 
     await ta('.wallpaper sends a neutral photo buffer, not a neko URL', async () => {

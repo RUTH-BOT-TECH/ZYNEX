@@ -102,6 +102,51 @@ const eq = (n, a, b) => {
   if (/EXPORTED/.test(out)) { console.log('✔ the handler still loads standalone'); pass++; }
   else { console.log('✗ handler failed to load:', out.slice(0, 120)); fail++; }
 
+  /* ── 4. live anti-bug notice: identify the person, do not lie about bans ── */
+  /*
+   * Production DM showed `Blocked: 97405882134595` and said the rate limit was
+   * temporary AND that the number was blocked permanently. An @lid is not a
+   * readable phone number; Baileys can supply participantPn/participantAlt.
+   */
+  const antiBug = require(path.join(ROOT, 'lib', 'anti', 'antiBug'));
+  let spam = null;
+  for (let i = 0; i < 9; i++) spam = antiBug.checkSpam('900000000001', false);
+  eq('the ninth rapid message is dropped', spam.blocked, true);
+  eq('a rate-limit drop is temporary, not permanent', spam.permanent, false);
+  eq('the temporary reason never claims a permanent block', /permanent/i.test(spam.reason), false);
+
+  const notice = antiBug.formatIncident({
+    senderJid: '97405882134595@lid',
+    senderNum: '97405882134595',
+    pushName: 'Tunde',
+    chatJid: '120363400000000000@g.us',
+    resolvedJid: '2348012345678@s.whatsapp.net',
+    reason: spam.reason,
+    permanent: false,
+  });
+  if (!/@2348012345678/.test(notice.text) || !/Tunde/.test(notice.text)) {
+    console.log('✗ the owner still cannot tell who was throttled'); fail++;
+  } else { console.log('✔ the owner sees a real @number and display name'); pass++; }
+  eq('the notice includes a tappable phone-number mention', notice.mentions,
+     ['2348012345678@s.whatsapp.net']);
+  if (/blocked permanently|cannot message you again/i.test(notice.text)) {
+    console.log('✗ a temporary throttle still claims a permanent ban'); fail++;
+  } else { console.log('✔ temporary throttle says nobody was blocked'); pass++; }
+  if (!/Group/.test(notice.text) || !/97405882134595@lid/.test(notice.text)) {
+    console.log('✗ the group and raw LID are missing for debugging'); fail++;
+  } else { console.log('✔ group and raw linked ID are visible'); pass++; }
+
+  const t0 = 1_800_000_000_000;
+  eq('the first incident sends an owner DM', antiBug.shouldNotify('900000000002', 'temporary', t0), true);
+  eq('duplicate notices in the same burst are suppressed', antiBug.shouldNotify('900000000002', 'temporary', t0 + 1000), false);
+  eq('a later burst can notify again', antiBug.shouldNotify('900000000002', 'temporary', t0 + 31_000), true);
+
+  const sm2 = fs.readFileSync(path.join(ROOT, 'lib', 'sessionManager.js'), 'utf8');
+  if (/This number has been blocked permanently/.test(sm2) ||
+      !/formatIncident\(/.test(sm2) || !/spamCheck\.permanent/.test(sm2)) {
+    console.log('✗ session manager still has the contradictory anti-bug notice'); fail++;
+  } else { console.log('✔ session manager uses the temporary/permanent incident card'); pass++; }
+
   console.log(`\n${fail ? '✗' : '✔'} ${pass}/${pass + fail} passed`);
   process.exit(fail ? 1 : 0);
 })();

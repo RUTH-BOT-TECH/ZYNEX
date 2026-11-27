@@ -7,8 +7,14 @@ so do the remaining one make them wrk”.
 
 **Scope:** finish the researched command-truth mismatches in the local repo.
 Do not touch `.rate`, `.vv dm`, the badge/tick, the API-key layer, Supabase,
-Vercel, Railway, or any unknown/ambiguous command. No commit, push, deploy or
-live WhatsApp retest was authorized for this pass.
+Vercel, Railway, or any unknown/ambiguous command. No deploy or live WhatsApp
+retest was authorized for this pass; the later GitHub push was separately
+authorized.
+
+**Live-test amendment:** `.anime Naruto` was later corrected again to send the
+AniList cover image with its information caption, and the anti-bug owner notice
+was made identifiable and truthful. Those newer fixes are documented in
+`LIVE-FIXES.md`; the `.anime` row below includes that amendment.
 
 ---
 
@@ -62,7 +68,7 @@ Picsum 200 JPEG; Datamuse `rel_syn=happy` → halcyon/content/bright, `rel_ant=h
 | `.wiki`, `.wikipedia` | Wikipedia lookup used undeclared `BOT_NAME` / `REPO_URL` variables, so its User-Agent could crash; `.define` was an alias | Wikipedia summary with those values imported from `lib/botInfo.js`; `.define` removed from the aliases |
 | `.define`, `.dictionary`, `.dict`, `.meaning` | Wikipedia lookup | Free Dictionary API definitions/phonetics/part of speech/examples |
 | `.synonym`, `.synonyms`, `.antonym`, `.antonyms`, `.thesaurus` | Definition or generic search | Datamuse relationship words; `.thesaurus` combines synonyms and antonyms |
-| `.anime`, `.animeinfo` | Random catgirl/neko image even for `.anime Naruto` | AniList GraphQL information by title; episodes, status, score, genres, synopsis and site URL. No query asks for a title |
+| `.anime`, `.animeinfo` | Random catgirl/neko image even for `.anime Naruto` | AniList cover image **with** an information caption; episodes, status, score, genres, synopsis and site URL. No query asks for a title. See `LIVE-FIXES.md` |
 | `.animepic`, `.randomanime`, `.animeimg`, `.animeimage` | No explicit honest home | Random anime artwork, preserving the old image behaviour under names that say it |
 | `.getpp`, `.pfp`, `.avatar`, `.getdp` | Random image / fallback | Real target profile picture via Baileys, caption tags `@number`, matching `mentions` list, graceful `404` handling |
 | `.wallpaper`, `.wp`, `.randompic`, `.picture` | `neko` image mislabelled as a wallpaper | Neutral Picsum photo buffer with a truthful caption; anime is never claimed |
@@ -103,14 +109,16 @@ five README stat SVGs. New: `scripts/command-truth-2-test.cjs` and this report.
 - `node scripts/audit-commands.cjs`: **audit clean**, **1,373 / 2,209 names
   implemented (62.2%)**, **210 file-owned · 1,163 engine-backed · 836 stubs**.
 - Direct smoke: `.bing Naruto` returned `Naruto - Wikipedia` and its Wikipedia
-  link; `.anime Naruto` returned `NARUTO` and `220 episodes · 23 min`.
+  link; `.anime Naruto` returned an AniList cover URL plus `NARUTO` and
+  `220 episodes · 23 min` in the image caption.
 - No live WhatsApp retest was possible from this workspace.
 
-**Delivery status:** this pass was validated locally. GitHub/Railway deployment
-is a separate action; Railway auto-deploy is off, so a manual **Redeploy** is
-needed to pick up pushed changes. No Railway, Supabase or Vercel call, and no
-API key, was made. The previously supplied raw GitHub PAT and Railway token
-should still be rotated/revoked.
+**Delivery status:** this pass was pushed as `7a43b34`. A later live-test
+amendment is documented in `LIVE-FIXES.md` and was validated locally; its
+commit/push is a separate action. GitHub/Railway deployment is a separate action; Railway auto-deploy is off, so a
+manual **Redeploy** is needed to pick up pushed changes. No Railway, Supabase or
+Vercel call, and no API key, was made. The previously supplied raw GitHub PAT
+and Railway token should still be rotated/revoked.
 
 ---
 

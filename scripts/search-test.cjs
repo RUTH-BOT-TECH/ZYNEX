@@ -142,10 +142,12 @@ const CASES = [
   /* 3. live answers */
   console.log('');
   const slow = [];
+  let animePayload = null;
   for (const [cmd, args, re] of CASES) {
     const started = Date.now();
     try {
       await search.execute(ctx(cmd, args));
+      if (cmd === 'anime' && args[0] === 'naruto') animePayload = sent[sent.length - 1];
       const r = good(re);
       ok(`.${cmd}${args.length ? ' ' + args.join(' ') : ''}`, r.pass, r.detail);
       if (Date.now() - started > 8000) slow.push(`.${cmd} ${Date.now() - started}ms`);
@@ -153,6 +155,11 @@ const CASES = [
       ok(`.${cmd}`, false, `threw: ${e.message}`);
     }
   }
+
+  ok('.anime Naruto sends an AniList cover image, not text only',
+     /anilist\.co/i.test(String(animePayload?.image?.url || '')) &&
+     /NARUTO/i.test(String(animePayload?.caption || '')),
+     `payload=${JSON.stringify(animePayload || {}).slice(0, 160)}`);
 
   /* 4. argument-required routes must refuse politely, not crash */
   console.log('');
